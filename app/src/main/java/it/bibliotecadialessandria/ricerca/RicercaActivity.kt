@@ -39,23 +39,24 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * La ricerca della Biblioteca di Alessandria, in un'app.
+ * App NON UFFICIALE per cercare nell'indice dei video di storia della
+ * Biblioteca di Alessandria (bibliotecadialessandria.it).
  *
- * Una schermata sola: la casella di ricerca, i risultati con l'anteprima del
- * video, e sotto tutti i filtri del sito (letti ogni volta dal sito, cosi' se
- * aggiungono una serie compare da sola). Niente account, niente dati salvati:
- * l'app fa quello che fa la pagina «Filtri» del sito.
- *
- * Il tasto «Condividi» di ogni video offre: guardarlo su YouTube, aggiungerlo
- * alla libreria di Somnio (se l'app Somnio e' installata: le si passa il link
- * come farebbe il Condividi di YouTube), oppure mandarlo a qualunque altra app.
+ * Quattro schede: Cerca (casella + filtri del sito + risultati), Preferiti e
+ * Playlist (salvati solo sul telefono, vedi Libreria), Crediti. Il tasto
+ * «Condividi» di ogni video offre YouTube, la libreria di Somnio o altre app.
  */
 class RicercaActivity : Activity() {
+
+    private enum class Scheda { CERCA, PREFERITI, PLAYLIST, CREDITI }
 
     private val ambito = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private lateinit var corpo: LinearLayout
     private lateinit var scorrimento: ScrollView
+
+    private var scheda = Scheda.CERCA
+    private var playlistAperta: String? = null
 
     private var testo = ""
     private var modulo: Biblioteca.Modulo? = null
@@ -96,8 +97,54 @@ class RicercaActivity : Activity() {
             setPadding(dp(16), dp(16), dp(16), dp(28))
         }
         corpo.addView(dentro)
+        dentro.addView(navBar(), sotto(12))
 
-        // ricerca
+        when (scheda) {
+            Scheda.CERCA -> disegnaCerca(dentro)
+            Scheda.PREFERITI -> disegnaPreferiti(dentro)
+            Scheda.PLAYLIST -> disegnaPlaylist(dentro)
+            Scheda.CREDITI -> disegnaCrediti(dentro)
+        }
+    }
+
+    private fun testata(): View {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        box.addView(ImageView(this).apply {
+            setImageResource(R.drawable.banner_sito)
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            adjustViewBounds = true
+            contentDescription = "La Biblioteca di Alessandria"
+            setOnClickListener { apri(Biblioteca.SITO + "/") }
+        }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+        return box
+    }
+
+    private fun navBar(): View {
+        val riga = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        fun voce(t: String, s: Scheda) {
+            val attiva = scheda == s
+            val b = Button(this).apply {
+                text = t; isAllCaps = false; textSize = 13f; stateListAnimator = null
+                setTextColor(colore(if (attiva) R.color.su_oro else R.color.testo))
+                background = if (attiva) sfondo(colore(R.color.oro), colore(R.color.oro), 10)
+                             else sfondo(colore(R.color.card), colore(R.color.bordo), 10)
+                setPadding(dp(4), dp(10), dp(4), dp(10))
+                setOnClickListener { scheda = s; if (s != Scheda.PLAYLIST) playlistAperta = null; disegna() }
+            }
+            riga.addView(b, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply {
+                leftMargin = dp(3); rightMargin = dp(3)
+            })
+        }
+        voce("Cerca", Scheda.CERCA)
+        voce("Preferiti", Scheda.PREFERITI)
+        voce("Playlist", Scheda.PLAYLIST)
+        voce("Crediti", Scheda.CREDITI)
+        return riga
+    }
+
+    // ── scheda: cerca ────────────────────────────────────────────────
+
+    private fun disegnaCerca(dentro: LinearLayout) {
         val cerca = card()
         val campo = campo("Cerca un video: Napoleone, Roma, peste...", testo)
         campo.addTextChangedListener(ricorda { testo = it })
@@ -110,7 +157,20 @@ class RicercaActivity : Activity() {
         cerca.addView(bottone(if (cercando) "Cerco..." else "Cerca", pieno = true) { cercaOra() })
         dentro.addView(cerca, sotto(12))
 
-        // risultati
+        // filtri: SUBITO sotto la ricerca
+        val filtri = card()
+        val intestazione = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setOnClickListener { filtriAperti = !filtriAperti; disegna() }
+        }
+        intestazione.addView(etichetta("Filtri"), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        intestazione.addView(nota(if (filtriAperti) "Nascondi ▲" else "Mostra ▼"))
+        filtri.addView(intestazione)
+        if (filtriAperti) disegnaFiltri(filtri)
+        dentro.addView(filtri, sotto(12))
+
+        // risultati sotto
         if (errore != null || totale != null || cercando) {
             val ris = card()
             errore?.let { ris.addView(nota(it), sotto(8)) }
@@ -128,32 +188,7 @@ class RicercaActivity : Activity() {
             dentro.addView(ris, sotto(12))
         }
 
-        // filtri
-        val filtri = card()
-        val intestazione = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setOnClickListener { filtriAperti = !filtriAperti; disegna() }
-        }
-        intestazione.addView(etichetta("Filtri"), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        intestazione.addView(nota(if (filtriAperti) "Nascondi ▲" else "Mostra ▼"))
-        filtri.addView(intestazione)
-        if (filtriAperti) disegnaFiltri(filtri)
-        dentro.addView(filtri, sotto(12))
-
-        dentro.addView(nota("Ricerca nell'indice dei video di bibliotecadialessandria.it"))
-    }
-
-    private fun testata(): View {
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        box.addView(ImageView(this).apply {
-            setImageResource(R.drawable.banner_sito)
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            adjustViewBounds = true
-            contentDescription = "La Biblioteca di Alessandria"
-            setOnClickListener { apri("https://www.bibliotecadialessandria.it/") }
-        }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-        return box
+        dentro.addView(nota("Ricerca nell'indice dei video di bibliotecadialessandria.it · app non ufficiale"))
     }
 
     private fun disegnaFiltri(filtri: LinearLayout) {
@@ -185,7 +220,6 @@ class RicercaActivity : Activity() {
                 caselle.addView(r)
             }
             if (g.opzioni.size > 16) {
-                // le 88 serie in una finestra che scorre, come sul sito
                 val finestra = ScrollView(this).apply {
                     addView(caselle, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
                     setOnTouchListener { v, _ -> v.parent.requestDisallowInterceptTouchEvent(true); false }
@@ -207,7 +241,123 @@ class RicercaActivity : Activity() {
         }, sopra(8))
     }
 
-    private fun rigaVideo(v: Biblioteca.Video): View {
+    // ── scheda: preferiti ────────────────────────────────────────────
+
+    private fun disegnaPreferiti(dentro: LinearLayout) {
+        val lista = Libreria.preferiti(this)
+        val card = card()
+        card.addView(etichetta("I tuoi preferiti"), sotto(8))
+        if (lista.isEmpty()) {
+            card.addView(nota("Ancora nessun preferito. Tocca la stella ☆ su un video per salvarlo qui."))
+        } else {
+            card.addView(nota("${lista.size} video · salvati su questo telefono"), sotto(6))
+            lista.forEach { card.addView(rigaVideo(it), sotto(14)) }
+        }
+        dentro.addView(card, sotto(12))
+    }
+
+    // ── scheda: playlist ─────────────────────────────────────────────
+
+    private fun disegnaPlaylist(dentro: LinearLayout) {
+        val aperta = playlistAperta
+        if (aperta != null) { disegnaPlaylistAperta(dentro, aperta); return }
+
+        val card = card()
+        card.addView(etichetta("Le tue playlist"), sotto(8))
+        val nomi = Libreria.nomiPlaylist(this)
+        if (nomi.isEmpty()) {
+            card.addView(nota("Nessuna playlist. Creane una qui, oppure con \"+ Playlist\" su un video."), sotto(10))
+        } else {
+            nomi.forEach { nome ->
+                val riga = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    background = sfondo(colore(R.color.fondo), colore(R.color.bordo), 10)
+                    setPadding(dp(14), dp(12), dp(14), dp(12))
+                    setOnClickListener { playlistAperta = nome; disegna() }
+                }
+                val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                box.addView(titoletto(nome))
+                box.addView(nota("${Libreria.quanti(this@RicercaActivity, nome)} video"))
+                riga.addView(box, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                riga.addView(nota("Apri ›"))
+                card.addView(riga, sotto(8))
+            }
+        }
+        card.addView(bottone("+ Nuova playlist", pieno = true) { chiediNuovaPlaylist(null) }, sopra(6))
+        dentro.addView(card, sotto(12))
+    }
+
+    private fun disegnaPlaylistAperta(dentro: LinearLayout, nome: String) {
+        val card = card()
+        val cap = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setOnClickListener { playlistAperta = null; disegna() }
+        }
+        cap.addView(nota("‹ Playlist"))
+        card.addView(cap, sotto(8))
+        card.addView(titoletto(nome), sotto(2))
+        val video = Libreria.contenuto(this, nome)
+        card.addView(nota("${video.size} video · su questo telefono"), sotto(8))
+        if (video.isEmpty()) {
+            card.addView(nota("Vuota. Aggiungi video con \"+ Playlist\" dalla ricerca o dai preferiti."))
+        } else {
+            video.forEach { card.addView(rigaVideo(it, inPlaylist = nome), sotto(14)) }
+        }
+        card.addView(bottone("Elimina questa playlist") { chiediElimina(nome) }, sopra(10))
+        dentro.addView(card, sotto(12))
+    }
+
+    // ── scheda: crediti ──────────────────────────────────────────────
+
+    private fun disegnaCrediti(dentro: LinearLayout) {
+        val card = card()
+        // logo della community (l'icona/tempio dell'app)
+        card.addView(ImageView(this).apply {
+            setImageResource(R.mipmap.ic_launcher)
+            adjustViewBounds = true
+            contentDescription = "La Biblioteca di Alessandria"
+            setOnClickListener { apri(Biblioteca.SITO + "/") }
+        }, LinearLayout.LayoutParams(dp(96), dp(96)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+
+        card.addView(TextView(this).apply {
+            text = "La Biblioteca di Alessandria"
+            textSize = 19f; gravity = Gravity.CENTER
+            setTypeface(Typeface.SERIF, Typeface.BOLD)
+            setTextColor(colore(R.color.testo))
+            setPadding(0, dp(10), 0, 0)
+        })
+        card.addView(TextView(this).apply {
+            text = "App non ufficiale — fan della community"
+            textSize = 13f; gravity = Gravity.CENTER
+            setTextColor(colore(R.color.tenue))
+            setPadding(0, dp(2), 0, dp(4))
+        })
+
+        card.addView(nota("Contenuti, catalogo e video sono della Biblioteca di Alessandria e dei suoi " +
+            "volontari. Questa app li rende solo piu' comodi da cercare; non e' affiliata al canale."), sopra(8))
+
+        card.addView(titoletto("La community"), sopra(16))
+        card.addView(nota("Il sito e il motore di ricerca dei video di storia del canale."))
+        card.addView(bottone("Vai al sito · bibliotecadialessandria.it", pieno = true) {
+            apri(Biblioteca.SITO + "/")
+        }, sopra(8))
+
+        card.addView(titoletto("Chi ha fatto l'app"), sopra(16))
+        card.addView(nota("Sviluppata da WorkingWithWeb come app della community, gratuita e a codice aperto."))
+        card.addView(bottone("WorkingWithWeb · workingwithweb.it/webagency", pieno = true) {
+            apri("https://workingwithweb.it/webagency")
+        }, sopra(8))
+        card.addView(bottone("Codice sorgente su GitHub") {
+            apri("https://github.com/AlfonsoVertu/biblioteca-alessandria-android")
+        }, sopra(8))
+
+        dentro.addView(card, sotto(12))
+    }
+
+    // ── riga di un video ─────────────────────────────────────────────
+
+    private fun rigaVideo(v: Biblioteca.Video, inPlaylist: String? = null): View {
         val riga = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val anteprima = ImageView(this).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
@@ -227,13 +377,80 @@ class RicercaActivity : Activity() {
         })
         val dettagli = v.dettagli()
         if (dettagli.isNotBlank()) riga.addView(nota(dettagli))
+
         val bottoni = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         bottoni.addView(bottone("▶  Guarda", pieno = true) { apri(v.link) },
             LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { rightMargin = dp(4) })
         bottoni.addView(bottone("Condividi") { condividi(v) },
             LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { leftMargin = dp(4) })
         riga.addView(bottoni, sopra(8))
+
+        val azioni = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val preferito = Libreria.ePreferito(this, v.youtubeId)
+        azioni.addView(bottone(if (preferito) "★ Nei preferiti" else "☆ Preferito") {
+            Libreria.cambiaPreferito(this, v)
+            disegna()
+        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { rightMargin = dp(4) })
+        if (inPlaylist == null) {
+            azioni.addView(bottone("+ Playlist") { chiediAggiungiAPlaylist(v) },
+                LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { leftMargin = dp(4) })
+        } else {
+            azioni.addView(bottone("Togli dalla playlist") {
+                Libreria.rimuoviDa(this, inPlaylist, v.youtubeId); disegna()
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { leftMargin = dp(4) })
+        }
+        riga.addView(azioni, sopra(6))
         return riga
+    }
+
+    // ── dialoghi playlist ────────────────────────────────────────────
+
+    private fun chiediAggiungiAPlaylist(v: Biblioteca.Video) {
+        val nomi = Libreria.nomiPlaylist(this)
+        val voci = (nomi + "+ Nuova playlist...").toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("Aggiungi a una playlist")
+            .setItems(voci) { _, i ->
+                if (i < nomi.size) {
+                    Libreria.aggiungiA(this, nomi[i], v)
+                    avvisa("Aggiunto a \"${nomi[i]}\".")
+                    if (scheda == Scheda.PLAYLIST) disegna()
+                } else {
+                    chiediNuovaPlaylist(v)
+                }
+            }
+            .show()
+    }
+
+    private fun chiediNuovaPlaylist(v: Biblioteca.Video?) {
+        val campo = EditText(this).apply {
+            hint = "Nome della playlist"; isSingleLine = true
+            inputType = InputType.TYPE_CLASS_TEXT
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Nuova playlist")
+            .setView(campo)
+            .setPositiveButton("Crea") { _, _ ->
+                val nome = campo.text?.toString()?.trim().orEmpty()
+                if (nome.isEmpty()) { avvisa("Serve un nome."); return@setPositiveButton }
+                Libreria.creaPlaylist(this, nome)
+                if (v != null) { Libreria.aggiungiA(this, nome, v); avvisa("Aggiunto a \"$nome\".") }
+                disegna()
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun chiediElimina(nome: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Eliminare \"$nome\"?")
+            .setMessage("La playlist sara' rimossa da questo telefono. I video restano sul sito.")
+            .setPositiveButton("Elimina") { _, _ ->
+                Libreria.eliminaPlaylist(this, nome); playlistAperta = null; disegna()
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
     }
 
     // ── azioni ───────────────────────────────────────────────────────
@@ -268,13 +485,11 @@ class RicercaActivity : Activity() {
         putExtra(Intent.EXTRA_TEXT, v.link)
     }
 
-    /** Come il Condividi di YouTube verso Somnio: Somnio riceve il link e lo mette in libreria. */
     private fun mandaASomnio(v: Biblioteca.Video) {
         runCatching { startActivity(testoCondiviso(v).setPackage(SOMNIO)) }
             .onFailure { avvisa("Somnio non ha accettato il link.") }
     }
 
-    /** Nell'app YouTube se c'e', altrimenti nel browser: decide Android. */
     private fun apri(link: String) {
         runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))) }
             .onFailure { avvisa("Nessuna app per aprire il link.") }
