@@ -1,0 +1,14 @@
+.gradle/
+build/
+app/build/
+*.apk
+*.aab
+local.properties
+*.jks
+*.keystore
+.idea/
+*.iml
+.DS_Store
+
+# l APK firmato da installare sta nel repository, apposta
+!consegna/*.apk

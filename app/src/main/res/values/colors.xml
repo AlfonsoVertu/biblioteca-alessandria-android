@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="fondo">#FF15100C</color>
+    <color name="card">#FF231A13</color>
+    <color name="bordo">#FF3A2C20</color>
+    <color name="testo">#FFF3EBDD</color>
+    <color name="tenue">#FFB9A68E</color>
+    <color name="oro">#FFD4A452</color>
+    <color name="su_oro">#FF1B130C</color>
+    <color name="icona_fondo">#FF1B130C</color>
+</resources>

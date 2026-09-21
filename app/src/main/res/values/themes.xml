@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- I colori del sito: legno scuro della biblioteca, testo avorio, oro. -->
+    <style name="Tema" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/fondo</item>
+        <item name="android:colorBackground">@color/fondo</item>
+        <item name="android:colorAccent">@color/oro</item>
+        <item name="android:statusBarColor">@color/fondo</item>
+        <item name="android:navigationBarColor">@color/fondo</item>
+    </style>
+</resources>
