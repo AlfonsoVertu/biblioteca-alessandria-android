@@ -69,6 +69,9 @@ class RicercaActivity : Activity() {
     private var errore: String? = null
     private var filtriAperti = false
 
+    /** Insieme degli id preferiti, aggiornato una volta per disegno (evita N letture di SharedPreferences). */
+    private var idPreferiti: Set<String> = emptySet()
+
     private val anteprime = HashMap<String, Bitmap?>()
 
     override fun onCreate(stato: Bundle?) {
@@ -89,6 +92,7 @@ class RicercaActivity : Activity() {
     // ── disegno ──────────────────────────────────────────────────────
 
     private fun disegna() {
+        idPreferiti = Libreria.idPreferiti(this)
         corpo.removeAllViews()
         corpo.addView(testata())
 
@@ -105,6 +109,14 @@ class RicercaActivity : Activity() {
             Scheda.PLAYLIST -> disegnaPlaylist(dentro)
             Scheda.CREDITI -> disegnaCrediti(dentro)
         }
+    }
+
+    /** Ridisegna mantenendo la posizione di scorrimento: per i toggle (stella, playlist)
+     *  dove ricostruire da capo e saltare in cima sarebbe fastidioso. */
+    private fun ridisegna() {
+        val y = scorrimento.scrollY
+        disegna()
+        scorrimento.post { scorrimento.scrollTo(0, y) }
     }
 
     private fun testata(): View {
@@ -386,17 +398,17 @@ class RicercaActivity : Activity() {
         riga.addView(bottoni, sopra(8))
 
         val azioni = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val preferito = Libreria.ePreferito(this, v.youtubeId)
+        val preferito = v.youtubeId in idPreferiti
         azioni.addView(bottone(if (preferito) "★ Nei preferiti" else "☆ Preferito") {
             Libreria.cambiaPreferito(this, v)
-            disegna()
+            ridisegna()
         }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { rightMargin = dp(4) })
         if (inPlaylist == null) {
             azioni.addView(bottone("+ Playlist") { chiediAggiungiAPlaylist(v) },
                 LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { leftMargin = dp(4) })
         } else {
             azioni.addView(bottone("Togli dalla playlist") {
-                Libreria.rimuoviDa(this, inPlaylist, v.youtubeId); disegna()
+                Libreria.rimuoviDa(this, inPlaylist, v.youtubeId); ridisegna()
             }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { leftMargin = dp(4) })
         }
         riga.addView(azioni, sopra(6))

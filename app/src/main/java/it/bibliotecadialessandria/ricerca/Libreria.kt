@@ -50,6 +50,9 @@ object Libreria {
 
     fun ePreferito(c: Context, id: String): Boolean = preferiti(c).any { it.youtubeId == id }
 
+    /** Solo gli id, letti in un colpo: per marcare la stella su tante righe senza ri-parsare ogni volta. */
+    fun idPreferiti(c: Context): Set<String> = preferiti(c).mapTo(HashSet()) { it.youtubeId }
+
     /** Aggiunge o toglie. Torna true se ORA e' fra i preferiti. */
     fun cambiaPreferito(c: Context, v: Biblioteca.Video): Boolean {
         val l = preferiti(c)
