@@ -110,6 +110,8 @@ class RicercaActivity : Activity() {
         caricaFiltri()
         // le notifiche dei video nuovi: il controllo periodico e, da Android 13, il permesso
         Notifiche.programma(this)
+        // (29/10) l'aggiornamento come in FroWay: al massimo ogni 6 ore si guarda se su mondo c'e' una versione nuova
+        if (Aggiornamento.daGuardare(this)) Aggiornamento.proponi(this, daSola = true)
         if (Build.VERSION.SDK_INT >= 33 && Notifiche.attive(this) &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
@@ -605,6 +607,8 @@ class RicercaActivity : Activity() {
         card.addView(bottone("Codice sorgente su GitHub") {
             apri("https://github.com/AlfonsoVertu/biblioteca-alessandria-android")
         }, sopra(8))
+        card.addView(nota("Versione ${Aggiornamento.nomeInstallato(this)} · si aggiorna da sola"), sopra(12))
+        card.addView(bottone("Cerca aggiornamenti") { Aggiornamento.proponi(this, daSola = false) }, sopra(6))
 
         // (29/10/2026, con il permesso di Gioele Sasso della Biblioteca) le donazioni vanno allo sviluppatore,
         // non alla Biblioteca: lo dice il testo, perche' l'app porta il loro nome
