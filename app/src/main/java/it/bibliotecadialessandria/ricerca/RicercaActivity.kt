@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -23,6 +24,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -50,6 +52,9 @@ import java.net.URL
 private const val DONAZIONI = "https://www.paypal.com/biz/profile/alfonsovertucci"
 /** Il canale YouTube della Biblioteca (lo stesso link del loro sito). */
 private const val CANALE = "https://www.youtube.com/@laBibliotecadiAlessandria"
+/** Il gruppo Facebook e l'Instagram della Biblioteca (dalla pagina del loro canale). */
+private const val COMMUNITY = "https://www.facebook.com/groups/624562554783646"
+private const val INSTAGRAM = "https://www.instagram.com/bibliotecadialessandria/"
 
 class RicercaActivity : Activity() {
 
@@ -136,67 +141,153 @@ class RicercaActivity : Activity() {
     }
 
     private fun testata(grande: Boolean = false): View {
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        box.addView(ImageView(this).apply {
+        if (!grande) {
+            val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            box.addView(ImageView(this).apply {
+                setImageResource(R.drawable.banner_sito)
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                adjustViewBounds = true
+                contentDescription = "La Biblioteca di Alessandria"
+                setOnClickListener { apri(Biblioteca.SITO + "/") }
+            }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+            return box
+        }
+        // (29/10, «fai qualcosa di moderno») la testata grande: il banner fa da sfondo velato (non si legge più
+        // tagliato), sfuma nel fondo dell'app, e sopra ci sono l'icona, il nome e la riga di presentazione
+        val eroe = FrameLayout(this)
+        eroe.addView(ImageView(this).apply {
             setImageResource(R.drawable.banner_sito)
             scaleType = ImageView.ScaleType.CENTER_CROP
-            adjustViewBounds = !grande
+            alpha = 0.16f
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        eroe.addView(View(this).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(Color.TRANSPARENT, colore(R.color.fondo)))
+        }, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        val testi = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(20), dp(24), dp(20), dp(12))
+        }
+        testi.addView(ImageView(this).apply {
+            setImageResource(R.mipmap.ic_launcher_foreground)
             contentDescription = "La Biblioteca di Alessandria"
             setOnClickListener { apri(Biblioteca.SITO + "/") }
-        }, LinearLayout.LayoutParams(MATCH_PARENT,
-            if (grande) (resources.displayMetrics.heightPixels * 0.34f).toInt() else WRAP_CONTENT))
-        return box
+        }, LinearLayout.LayoutParams(dp(112), dp(112)))
+        testi.addView(TextView(this).apply {
+            text = "La Biblioteca di Alessandria"
+            textSize = 24f; gravity = Gravity.CENTER
+            setTypeface(Typeface.SERIF, Typeface.BOLD)
+            setTextColor(colore(R.color.testo))
+            setPadding(0, dp(12), 0, 0)
+        })
+        testi.addView(TextView(this).apply {
+            text = "I video di storia della community, a portata di mano"
+            textSize = 14f; gravity = Gravity.CENTER
+            setTextColor(colore(R.color.tenue))
+            setPadding(0, dp(4), 0, 0)
+        })
+        eroe.addView(testi, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM))
+        eroe.layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(250))
+        return eroe
     }
 
     // ── home: mattonelle per le sezioni, poi le donazioni ───────────
 
     private fun disegnaHome(dentro: LinearLayout) {
+        class Voce(val icona: Int, val nome: String, val sotto: String, val vai: () -> Unit)
         val voci = listOf(
-            Triple("🔍", "Cerca i video") { scheda = Scheda.CERCA; disegna() },
-            Triple("★", "Preferiti") { scheda = Scheda.PREFERITI; disegna() },
-            Triple("☰", "Playlist") { playlistAperta = null; scheda = Scheda.PLAYLIST; disegna() },
-            Triple("▶", "Canale YouTube") { apri(CANALE) },
-            Triple("🌐", "Il sito") { apri(Biblioteca.SITO + "/") },
-            Triple("ℹ", "Crediti") { scheda = Scheda.CREDITI; disegna() },
+            Voce(R.drawable.ic_cerca, "Cerca", "Tutti i filtri del sito") { scheda = Scheda.CERCA; disegna() },
+            Voce(R.drawable.ic_preferiti, "Preferiti", "I video salvati") { scheda = Scheda.PREFERITI; disegna() },
+            Voce(R.drawable.ic_playlist, "Playlist", "Le tue raccolte") { playlistAperta = null; scheda = Scheda.PLAYLIST; disegna() },
+            Voce(R.drawable.ic_canale, "YouTube", "Il canale") { apri(CANALE) },
+            Voce(R.drawable.ic_community, "Community", "Il gruppo Facebook") { apri(COMMUNITY) },
+            Voce(R.drawable.ic_instagram, "Instagram", "@bibliotecadialessandria") { apri(INSTAGRAM) },
+            Voce(R.drawable.ic_sito, "Il sito", "bibliotecadialessandria.it") { apri(Biblioteca.SITO + "/") },
+            Voce(R.drawable.ic_crediti, "Crediti", "Chi ha fatto l'app") { scheda = Scheda.CREDITI; disegna() },
         )
         voci.chunked(2).forEach { coppia ->
             val riga = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            coppia.forEachIndexed { i, (icona, nome, vai) ->
-                riga.addView(mattonella(icona, nome, vai), LinearLayout.LayoutParams(0, dp(116), 1f).apply {
+            coppia.forEachIndexed { i, v ->
+                riga.addView(mattonella(v.icona, v.nome, v.sotto, v.vai), LinearLayout.LayoutParams(0, dp(132), 1f).apply {
                     if (i == 0) rightMargin = dp(6) else leftMargin = dp(6)
                 })
             }
             dentro.addView(riga, sotto(12))
         }
-
-        val dona = card()
-        dona.addView(titoletto("Sostieni l'app"))
-        dona.addView(nota("L'app e' gratuita e senza pubblicita'. Se ti e' utile puoi fare una donazione a chi " +
-            "l'ha sviluppata (Alfonso Vertucci): va allo sviluppo dell'app, non alla Biblioteca di Alessandria."))
-        dona.addView(bottone("Dona con PayPal", pieno = true) { apri(DONAZIONI) }, sopra(8))
-        dentro.addView(dona, sotto(12))
-        dentro.addView(nota("App non ufficiale della community · i video sono della Biblioteca di Alessandria"))
+        dentro.addView(cartaDona(), sopra(4))
+        dentro.addView(nota("App non ufficiale della community · i video sono della Biblioteca di Alessandria").apply {
+            gravity = Gravity.CENTER; setPadding(0, dp(16), 0, 0)
+        })
     }
 
-    private fun mattonella(icona: String, nome: String, vai: () -> Unit): View =
+    /** Mattonella moderna: icona in un cerchio dorato in alto, nome e riga breve in basso, angoli ampi. */
+    private fun mattonella(icona: Int, nome: String, sotto: String, vai: () -> Unit): View =
         LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            background = sfondo(colore(R.color.card), colore(R.color.bordo), 14)
-            isClickable = true
+            setPadding(dp(16), dp(16), dp(16), dp(14))
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(colore(R.color.card), colore(R.color.fondo))).apply {
+                cornerRadius = dp(22).toFloat(); setStroke(dp(1), colore(R.color.bordo))
+            }
+            isClickable = true; isFocusable = true
+            foreground = getDrawable(android.R.drawable.list_selector_background)
             setOnClickListener { vai() }
             contentDescription = nome
+            val cerchio = FrameLayout(this@RicercaActivity).apply {
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL; setColor(Color.argb(46, 212, 164, 82))
+                }
+            }
+            cerchio.addView(ImageView(this@RicercaActivity).apply { setImageResource(icona) },
+                FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
+            addView(cerchio, LinearLayout.LayoutParams(dp(46), dp(46)))
+            addView(View(this@RicercaActivity), LinearLayout.LayoutParams(0, 0, 1f))
             addView(TextView(this@RicercaActivity).apply {
-                text = icona; textSize = 30f; gravity = Gravity.CENTER
-                setTextColor(colore(R.color.oro))
+                text = nome; textSize = 17f
+                setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                setTextColor(colore(R.color.testo))
             })
             addView(TextView(this@RicercaActivity).apply {
-                text = nome; textSize = 15f; gravity = Gravity.CENTER
-                setTypeface(Typeface.SERIF, Typeface.BOLD)
-                setTextColor(colore(R.color.testo))
-                setPadding(dp(6), dp(6), dp(6), 0)
+                text = sotto; textSize = 12.5f; maxLines = 1
+                setTextColor(colore(R.color.tenue))
             })
         }
+
+    /** Le donazioni: una card dorata col cuore e il bottone a pillola. */
+    private fun cartaDona(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(20), dp(20), dp(20), dp(20))
+        background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+            intArrayOf(Color.argb(70, 212, 164, 82), colore(R.color.card))).apply {
+            cornerRadius = dp(22).toFloat(); setStroke(dp(1), Color.argb(120, 212, 164, 82))
+        }
+        val riga = LinearLayout(this@RicercaActivity).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+        }
+        riga.addView(ImageView(this@RicercaActivity).apply { setImageResource(R.drawable.ic_dona) },
+            LinearLayout.LayoutParams(dp(26), dp(26)).apply { rightMargin = dp(10) })
+        riga.addView(TextView(this@RicercaActivity).apply {
+            text = "Sostieni l'app"; textSize = 18f
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            setTextColor(colore(R.color.testo))
+        })
+        addView(riga)
+        addView(TextView(this@RicercaActivity).apply {
+            text = "Gratuita e senza pubblicità. Se ti è utile, una donazione aiuta chi l'ha sviluppata " +
+                "(Alfonso Vertucci) a mantenerla. Va allo sviluppo dell'app, non alla Biblioteca di Alessandria."
+            textSize = 14f; setTextColor(colore(R.color.tenue))
+            setPadding(0, dp(8), 0, dp(14))
+        })
+        addView(Button(this@RicercaActivity).apply {
+            text = "Dona con PayPal"; isAllCaps = false; textSize = 16f; stateListAnimator = null
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            setTextColor(colore(R.color.su_oro))
+            background = GradientDrawable().apply { setColor(colore(R.color.oro)); cornerRadius = dp(28).toFloat() }
+            setOnClickListener { apri(DONAZIONI) }
+        }, LinearLayout.LayoutParams(MATCH_PARENT, dp(52)))
+    }
 
     private fun navBar(): View {
         val riga = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -263,7 +354,7 @@ class RicercaActivity : Activity() {
             }
             trovati.forEach { ris.addView(rigaVideo(it), sotto(14)) }
             if (trovati.isNotEmpty() && trovati.size < (totale ?: 0)) {
-                ris.addView(nota("Per vederne di piu' aumenta \"Quanti risultati al massimo\" nei filtri."))
+                ris.addView(nota("Per vederne di più aumenta \"Quanti risultati al massimo\" nei filtri."))
             }
             dentro.addView(ris, sotto(12))
         }
@@ -415,7 +506,7 @@ class RicercaActivity : Activity() {
         })
 
         card.addView(nota("Contenuti, catalogo e video sono della Biblioteca di Alessandria e dei suoi " +
-            "volontari. Questa app li rende solo piu' comodi da cercare; non e' affiliata al canale."), sopra(8))
+            "volontari. Questa app li rende solo più comodi da cercare; non è affiliata al canale."), sopra(8))
 
         card.addView(titoletto("La community"), sopra(16))
         card.addView(nota("Il sito e il motore di ricerca dei video di storia del canale."))
@@ -423,6 +514,8 @@ class RicercaActivity : Activity() {
             apri(Biblioteca.SITO + "/")
         }, sopra(8))
         card.addView(bottone("Il canale YouTube della Biblioteca") { apri(CANALE) }, sopra(8))
+        card.addView(bottone("La community su Facebook") { apri(COMMUNITY) }, sopra(8))
+        card.addView(bottone("Instagram · @bibliotecadialessandria") { apri(INSTAGRAM) }, sopra(8))
 
         card.addView(titoletto("Chi ha fatto l'app"), sopra(16))
         card.addView(nota("Sviluppata da WorkingWithWeb come app della community, gratuita e a codice aperto."))
@@ -436,7 +529,7 @@ class RicercaActivity : Activity() {
         // (29/10/2026, con il permesso di Gioele Sasso della Biblioteca) le donazioni vanno allo sviluppatore,
         // non alla Biblioteca: lo dice il testo, perche' l'app porta il loro nome
         card.addView(titoletto("Sostieni l'app"), sopra(16))
-        card.addView(nota("L'app e' gratuita e senza pubblicita'. Se ti e' utile puoi fare una donazione a chi " +
+        card.addView(nota("L'app è gratuita e senza pubblicità. Se ti è utile puoi fare una donazione a chi " +
             "l'ha sviluppata (Alfonso Vertucci): va allo sviluppo dell'app, non alla Biblioteca di Alessandria."))
         card.addView(bottone("Dona con PayPal", pieno = true) { apri(DONAZIONI) }, sopra(8))
 
@@ -533,7 +626,7 @@ class RicercaActivity : Activity() {
     private fun chiediElimina(nome: String) {
         AlertDialog.Builder(this)
             .setTitle("Eliminare \"$nome\"?")
-            .setMessage("La playlist sara' rimossa da questo telefono. I video restano sul sito.")
+            .setMessage("La playlist sarà rimossa da questo telefono. I video restano sul sito.")
             .setPositiveButton("Elimina") { _, _ ->
                 Libreria.eliminaPlaylist(this, nome); playlistAperta = null; disegna()
             }
@@ -560,7 +653,7 @@ class RicercaActivity : Activity() {
                 when (i) {
                     0 -> apri(v.link)
                     1 -> if (somnio) mandaASomnio(v) else
-                        avvisa("Somnio non e' installata su questo telefono.")
+                        avvisa("Somnio non è installata su questo telefono.")
                     else -> startActivity(Intent.createChooser(testoCondiviso(v), "Condividi il video"))
                 }
             }

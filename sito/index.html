@@ -2,87 +2,284 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>La Biblioteca di Alessandria — app Android non ufficiale</title>
-<meta name="description" content="App Android gratuita e non ufficiale per cercare i video di storia di bibliotecadialessandria.it con tutti i filtri del sito, preferiti e playlist.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>La Biblioteca di Alessandria · l'app</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="App Android gratuita e non ufficiale per i video di storia della Biblioteca di Alessandria: ricerca con tutti i filtri del sito, preferiti, playlist e la community a un tocco.">
 <link rel="icon" href="icona.png" type="image/png">
-<meta property="og:title" content="La Biblioteca di Alessandria — app Android">
-<meta property="og:description" content="Cerca i video di storia della Biblioteca di Alessandria dal telefono, con tutti i filtri del sito.">
-<meta property="og:image" content="https://mondo.workingwithweb.eu/biblioteca-alessandria/icona.png">
+<meta name="theme-color" content="#100b08">
+<meta property="og:title" content="La Biblioteca di Alessandria · l'app">
+<meta property="og:description" content="I video di storia della community, a portata di mano.">
+<meta property="og:image" content="https://mondo.workingwithweb.eu/biblioteca-alessandria/schermata-home.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Figtree:wght@400;600;700&display=swap">
 <style>
-  /* (29/10/2026) la pagina dell'app: stessi colori dell'app (res/values/colors.xml) */
-  :root { --fondo:#15100c; --card:#231a13; --bordo:#3a2c20; --testo:#f3ebdd; --tenue:#b9a68e; --oro:#d4a452; --su-oro:#1b130c; }
+  /* Direzione: un'iscrizione romana letta di notte. Pietra scura calda, oro inciso, lettere capitali.
+     Layout: testata a due colonne (testo e telefono), poi una fascia di cifre incise, poi le sezioni.
+     Un solo aspetto, scuro per scelta: è il colore dell'app. */
+  :root {
+    color-scheme: dark;
+    --pietra: #100b08;      /* fondo */
+    --pietra-2: #18110c;    /* fasce */
+    --lastra: #21180f;      /* card */
+    --filo: rgba(214,168,84,.18);
+    --pergamena: #f2e8d6;   /* testo */
+    --cenere: #b3a088;      /* testo secondario */
+    --oro: #d6a854;
+    --oro-chiaro: #f3cf86;
+    --su-oro: #1a120a;
+    --f-incisa: "Cinzel", "Trajan Pro", Georgia, serif;
+    --f-titolo: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    --f-testo: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--fondo); color: var(--testo); font: 17px/1.6 Georgia, "Times New Roman", serif; }
-  a { color: var(--oro); }
-  .pagina { max-width: 760px; margin: 0 auto; padding: 32px 16px 24px; }
-  header { text-align: center; padding: 24px 0 8px; }
-  header img { width: 112px; height: 112px; border-radius: 24px; }
-  h1 { font-size: 2rem; line-height: 1.2; margin: 16px 0 4px; }
-  .sotto { color: var(--tenue); margin: 0 0 24px; font-size: .95rem; }
-  .card { background: var(--card); border: 1px solid var(--bordo); border-radius: 14px; padding: 20px; margin: 16px 0; }
-  .card h2 { font-size: 1.2rem; margin: 0 0 8px; color: var(--oro); }
-  .card p { margin: 8px 0; }
-  ul { margin: 8px 0; padding-left: 22px; }
-  li { margin: 4px 0; }
-  .bottone { display: inline-block; background: var(--oro); color: var(--su-oro); text-decoration: none; font-weight: bold;
-             padding: 12px 22px; border-radius: 10px; margin: 8px 8px 0 0; }
-  .bottone.vuoto { background: transparent; color: var(--oro); border: 1px solid var(--oro); }
-  .nota { color: var(--tenue); font-size: .9rem; }
-  footer { border-top: 1px solid var(--bordo); margin-top: 32px; padding: 24px 16px 32px; }
-  .tre { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .tre a { display: block; background: var(--card); border: 1px solid var(--bordo); border-radius: 12px; padding: 14px;
-           text-decoration: none; color: var(--testo); }
-  .tre strong { display: block; color: var(--oro); }
-  .tre span { color: var(--tenue); font-size: .88rem; }
-  @media (max-width: 640px) { .tre { grid-template-columns: 1fr; } h1 { font-size: 1.6rem; } }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--pietra); color: var(--pergamena); font: 17px/1.65 var(--f-testo);
+         -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--oro-chiaro); outline-offset: 3px; border-radius: 8px; }
+  .largo { max-width: 1140px; margin: 0 auto;
+           padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+  .incisa { font-family: var(--f-incisa); letter-spacing: .16em; text-transform: uppercase; }
+
+  /* ── testata ───────────────────────────────────────── */
+  .eroe { position: relative; overflow: hidden; padding-block: 64px 72px; isolation: isolate; }
+  .eroe::before { /* luce calda dietro il telefono */
+    content: ""; position: absolute; inset: -20% -10% auto 40%; height: 120%; z-index: -1;
+    background: radial-gradient(closest-side, rgba(214,168,84,.22), transparent 70%); filter: blur(10px); }
+  .eroe::after { /* colonnato appena accennato, come una sala di lettura */
+    content: ""; position: absolute; inset: 0; z-index: -2; opacity: .05;
+    background: repeating-linear-gradient(90deg, var(--oro) 0 2px, transparent 2px 96px); }
+  .eroe .largo { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,.85fr); gap: 56px; align-items: center; }
+  .sigillo { display: inline-flex; align-items: center; gap: 12px; color: var(--oro-chiaro); font-size: .72rem; }
+  .sigillo img { width: 34px; height: 34px; border-radius: 10px; box-shadow: 0 0 0 1px var(--filo); }
+  h1 { font-family: var(--f-titolo); font-weight: 600; font-size: clamp(2.8rem, 6.4vw, 5.2rem); line-height: .98;
+       margin: 22px 0 18px; letter-spacing: -.01em; text-wrap: balance; }
+  h1 em { font-style: italic; color: transparent; background: linear-gradient(100deg, var(--oro) 20%, #fff3d6 45%, var(--oro) 70%);
+          background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; animation: luce 6s ease-in-out 1.2s infinite; }
+  @keyframes luce { 0%,100% { background-position: 100% 0; } 50% { background-position: 0 0; } }
+  .lead { color: var(--cenere); font-size: 1.16rem; max-width: 33em; margin: 0 0 30px; }
+  .azioni { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; font-size: 1rem;
+         padding: 15px 26px; border-radius: 999px; transition: transform .2s, box-shadow .2s, background-color .2s; }
+  .btn svg { width: 20px; height: 20px; fill: currentColor; flex: none; }
+  .btn.oro { background: linear-gradient(135deg, var(--oro-chiaro), var(--oro)); color: var(--su-oro);
+             box-shadow: 0 12px 34px rgba(214,168,84,.3); }
+  .btn.oro:hover { transform: translateY(-2px); box-shadow: 0 18px 44px rgba(214,168,84,.42); }
+  .btn.vetro { border: 1px solid var(--filo); color: var(--pergamena); background: rgba(242,232,214,.04); }
+  .btn.vetro:hover { background: rgba(242,232,214,.09); }
+  .dettagli { color: var(--cenere); font-size: .84rem; margin-top: 16px; font-variant-numeric: tabular-nums; }
+
+  .scena { display: grid; place-items: center; perspective: 1200px; }
+  .telefono { width: min(310px, 74vw); max-width: 100%; aspect-ratio: 540/1145; border-radius: 46px; padding: 10px;
+              background: linear-gradient(155deg, #4a3826, #120c08 60%);
+              box-shadow: 0 50px 100px rgba(0,0,0,.65), 0 0 0 1px rgba(214,168,84,.3), 0 0 90px rgba(214,168,84,.18);
+              transform: rotateY(-14deg) rotateX(6deg) rotate(-2deg); animation: fluttua 7s ease-in-out infinite; }
+  .telefono img { width: 100%; height: 100%; object-fit: cover; border-radius: 36px; display: block; }
+  @keyframes fluttua { 50% { transform: rotateY(-10deg) rotateX(4deg) rotate(-1deg) translateY(-12px); } }
+
+  /* entrata della testata: un solo momento orchestrato */
+  .entra { animation: sale .9s cubic-bezier(.2,.7,.2,1) both; }
+  .entra.d1 { animation-delay: .08s } .entra.d2 { animation-delay: .2s } .entra.d3 { animation-delay: .34s }
+  .entra.d4 { animation-delay: .48s } .scena.entra { animation-duration: 1.2s; animation-delay: .25s }
+  @keyframes sale { from { opacity: 0; transform: translateY(22px); } }
+
+  /* ── cifre del canale, come un'epigrafe ───────────── */
+  .epigrafe { border-block: 1px solid var(--filo); background: var(--pietra-2); }
+  .epigrafe .largo { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; padding-block: 28px; text-align: center; }
+  .cifra b { display: block; font-family: var(--f-incisa); font-weight: 700; font-size: clamp(1.5rem, 3vw, 2.2rem);
+             color: var(--oro-chiaro); letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+  .cifra span { color: var(--cenere); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; }
+
+  /* ── sezioni ───────────────────────────────────────── */
+  section { padding-block: 84px; }
+  .capo { max-width: 640px; margin: 0 auto 44px; text-align: center; }
+  .capo .incisa { color: var(--oro); font-size: .74rem; }
+  h2 { font-family: var(--f-titolo); font-weight: 600; font-size: clamp(2rem, 4vw, 3rem); line-height: 1.08;
+       margin: 12px 0 12px; text-wrap: balance; }
+  .capo p { color: var(--cenere); margin: 0; }
+
+  .funzioni { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 18px; }
+  .funzione { position: relative; border-radius: 26px; padding: 26px; background: linear-gradient(150deg, var(--lastra), var(--pietra-2));
+              border: 1px solid var(--filo); overflow: hidden; transition: transform .25s, border-color .25s; }
+  .funzione::after { content: ""; position: absolute; inset: auto -30% -60% auto; width: 70%; aspect-ratio: 1; border-radius: 50%;
+                     background: radial-gradient(closest-side, rgba(214,168,84,.16), transparent); opacity: 0; transition: opacity .3s; }
+  .funzione:hover { transform: translateY(-4px); border-color: rgba(214,168,84,.45); }
+  .funzione:hover::after { opacity: 1; }
+  .icona { width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 18px;
+           background: rgba(214,168,84,.15); box-shadow: inset 0 0 0 1px rgba(214,168,84,.25); }
+  .icona svg { width: 24px; height: 24px; fill: var(--oro); }
+  .funzione h3 { margin: 0 0 6px; font-size: 1.12rem; }
+  .funzione p { margin: 0; color: var(--cenere); font-size: .96rem; }
+
+  .galleria { display: flex; gap: 26px; overflow-x: auto; padding: 10px 6px 30px; scroll-snap-type: x mandatory;
+              scrollbar-width: thin; scrollbar-color: var(--oro) transparent; }
+  .galleria figure { flex: 0 0 auto; width: 236px; margin: 0; scroll-snap-align: center; text-align: center; }
+  .galleria img { width: 100%; height: auto; aspect-ratio: 540/1145; border-radius: 28px; display: block; border: 1px solid var(--filo);
+                  box-shadow: 0 24px 60px rgba(0,0,0,.55); transition: transform .3s; }
+  .galleria figure:hover img { transform: translateY(-6px) scale(1.02); }
+  .galleria figcaption { color: var(--cenere); font-size: .86rem; margin-top: 14px; }
+
+  .dona { position: relative; overflow: hidden; display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 28px;
+          align-items: center; padding: 36px; border-radius: 30px; border: 1px solid rgba(214,168,84,.4);
+          background: linear-gradient(130deg, rgba(214,168,84,.24), var(--lastra) 55%); }
+  .dona .cuore { width: 70px; height: 70px; border-radius: 22px; display: grid; place-items: center; background: rgba(214,168,84,.18);
+                 animation: battito 2.6s ease-in-out infinite; }
+  .dona .cuore svg { width: 34px; height: 34px; fill: var(--oro-chiaro); }
+  @keyframes battito { 0%,100% { transform: scale(1) } 12% { transform: scale(1.08) } 24% { transform: scale(1) } 36% { transform: scale(1.05) } }
+  .dona h2 { margin: 0 0 6px; font-size: clamp(1.7rem, 3vw, 2.2rem); }
+  .dona p { margin: 0; color: var(--cenere); max-width: 58ch; }
+
+  .passi { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 18px; counter-reset: passo; }
+  .passo { border-radius: 22px; padding: 24px; background: var(--lastra); border: 1px solid var(--filo); }
+  .passo::before { counter-increment: passo; content: counter(passo, upper-roman); display: block; font-family: var(--f-incisa);
+                   font-weight: 700; color: var(--oro); font-size: 1.4rem; margin-bottom: 8px; }
+  .passo p { margin: 0; color: var(--cenere); }
+  .avvertenza { color: var(--cenere); font-size: .88rem; text-align: center; max-width: 70ch; margin: 30px auto 0; }
+
+  /* le sezioni salgono piano entrando nello schermo, partendo sempre visibili */
+  .sale { transition: transform .8s cubic-bezier(.2,.7,.2,1), opacity .8s; }
+  .sale.attesa { transform: translateY(26px); opacity: .35; }
+
+  footer { border-top: 1px solid var(--filo); background: var(--pietra-2); padding-block: 44px 52px; }
+  .tre { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+  .tre a { display: block; text-decoration: none; border-radius: 22px; padding: 22px; background: var(--lastra);
+           border: 1px solid var(--filo); transition: border-color .2s, transform .2s; }
+  .tre a:hover { border-color: var(--oro); transform: translateY(-3px); }
+  .tre .incisa { display: block; color: var(--oro-chiaro); font-size: .78rem; margin-bottom: 4px; }
+  .tre strong { display: block; font-size: 1.1rem; }
+  .tre span { color: var(--cenere); font-size: .9rem; }
+  .firma { text-align: center; color: var(--cenere); font-size: .8rem; margin-top: 30px; }
+
+  @media (max-width: 880px) {
+    .eroe .largo { grid-template-columns: minmax(0,1fr); text-align: center; gap: 36px; }
+    .lead { margin-inline: auto; } .azioni { justify-content: center; }
+    .epigrafe .largo { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .funzioni, .passi, .tre { grid-template-columns: minmax(0,1fr); }
+    .dona { grid-template-columns: minmax(0,1fr); text-align: center; justify-items: center; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .sale.attesa { transform: none; opacity: 1; }
+    html { scroll-behavior: auto; }
+  }
 </style>
 </head>
 <body>
-<div class="pagina">
-  <header>
-    <img src="icona.png" alt="Icona dell'app La Biblioteca di Alessandria">
-    <h1>La Biblioteca di Alessandria</h1>
-    <p class="sotto">App Android non ufficiale, gratuita e senza pubblicità, fatta da un fan della community</p>
-    <a class="bottone" href="La-Biblioteca-di-Alessandria-1.2.0.apk" download>Scarica l'app per Android (1.2.0)</a>
-  </header>
 
-  <section class="card">
-    <h2>Cosa fa</h2>
-    <p>Cerca i video di storia di <a href="https://www.bibliotecadialessandria.it/">bibliotecadialessandria.it</a>
-      dal telefono, con tutti i filtri del sito: tipo, categoria, periodo, zona, serie, personaggi, luoghi, date e durata.</p>
-    <ul>
-      <li>Preferiti e playlist, salvati solo sul tuo telefono.</li>
-      <li>Ogni video si guarda su YouTube o si condivide con un'altra app.</li>
-      <li>Nessun account, nessun dato raccolto, nessun server in mezzo: l'app legge la ricerca del sito come fa il browser.</li>
-    </ul>
-  </section>
+<header class="eroe">
+  <div class="largo">
+    <div>
+      <span class="sigillo incisa entra"><img src="icona.png" alt="">App Android · gratuita · non ufficiale</span>
+      <h1 class="entra d1">La Biblioteca di Alessandria, <em>in tasca</em></h1>
+      <p class="lead entra d2">I video di storia della community, a portata di mano: cerca fra migliaia di video con tutti i
+        filtri del sito, salva i preferiti e costruisci le tue playlist.</p>
+      <div class="azioni entra d3">
+        <a class="btn oro" href="La-Biblioteca-di-Alessandria-1.3.0.apk" download>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5,20h14v-2H5V20zM19,9h-4V3H9v6H5l7,7L19,9z"/></svg>Scarica l'app</a>
+        <a class="btn vetro" href="#dona">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,21.35l-1.45,-1.32C5.4,15.36 2,12.28 2,8.5 2,5.42 4.42,3 7.5,3c1.74,0 3.41,0.81 4.5,2.09C13.09,3.81 14.76,3 16.5,3 19.58,3 22,5.42 22,8.5c0,3.78 -3.4,6.86 -8.55,11.54L12,21.35z"/></svg>Sostieni l'app</a>
+      </div>
+      <div class="dettagli entra d4">Versione 1.3.0 · Android 7 o più recente · 1,9 MB · nessun account</div>
+    </div>
+    <div class="scena entra"><div class="telefono"><img src="schermata-home.webp" alt="La home dell'app con le mattonelle delle sezioni"></div></div>
+  </div>
+</header>
 
-  <section class="card">
-    <h2>Sostieni l'app</h2>
-    <p>L'app è gratuita. Se ti è utile puoi fare una donazione allo sviluppatore, Alfonso Vertucci, per aiutarlo a
-      mantenerla e a migliorarla.</p>
-    <p class="nota">La donazione va allo sviluppo dell'app, non alla Biblioteca di Alessandria. Il link alle donazioni
-      è presente con il permesso della Biblioteca.</p>
-    <a class="bottone" href="https://www.paypal.com/biz/profile/alfonsovertucci" rel="noopener">Dona con PayPal</a>
-  </section>
-
-  <section class="card">
-    <h2>Installazione</h2>
-    <p>Scarica il file .apk dal telefono e aprilo. Se Android lo chiede, consenti l'installazione da questa fonte.
-      Il codice è aperto e si può controllare su
-      <a href="https://github.com/AlfonsoVertu/biblioteca-alessandria-android">GitHub</a>.</p>
-    <p class="nota">Contenuti, catalogo e video sono della Biblioteca di Alessandria e dei suoi volontari. Questa app li
-      rende solo più comodi da cercare e non è affiliata al canale.</p>
-  </section>
+<div class="epigrafe" aria-label="Il canale della Biblioteca in cifre">
+  <div class="largo">
+    <div class="cifra"><b>290.000</b><span>Iscritti al canale</span></div>
+    <div class="cifra"><b>5.293</b><span>Video di storia</span></div>
+    <div class="cifra"><b>69,7 mln</b><span>Visualizzazioni</span></div>
+    <div class="cifra"><b>MMVII</b><span>Online dal 2007</span></div>
+  </div>
 </div>
 
+<section>
+  <div class="largo">
+    <div class="capo sale"><span class="incisa">Cosa fa</span><h2>Tutta la Biblioteca, in un'app</h2>
+      <p>Pensata per chi guarda i video della Biblioteca di Alessandria e vuole ritrovarli in un attimo.</p></div>
+    <div class="funzioni">
+      <div class="funzione sale"><div class="icona"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5,14h-0.79l-0.28,-0.27C15.41,12.59 16,11.11 16,9.5 16,5.91 13.09,3 9.5,3S3,5.91 3,9.5 5.91,16 9.5,16c1.61,0 3.09,-0.59 4.23,-1.57l0.27,0.28v0.79l5,4.99L20.49,19l-4.99,-5zM9.5,14C7.01,14 5,11.99 5,9.5S7.01,5 9.5,5 14,7.01 14,9.5 11.99,14 9.5,14z"/></svg></div>
+        <h3>Ricerca con tutti i filtri</h3><p>Tipo, categoria, periodo, zona, serie, personaggi, luoghi, date e durata, gli stessi del sito.</p></div>
+      <div class="funzione sale"><div class="icona"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,17.27L18.18,21l-1.64,-7.03L22,9.24l-7.19,-0.61L12,2 9.19,8.63 2,9.24l5.46,4.73L5.82,21z"/></svg></div>
+        <h3>Preferiti</h3><p>Una stella e il video resta lì, salvato solo sul tuo telefono.</p></div>
+      <div class="funzione sale"><div class="icona"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15,6H3v2h12V6zM15,10H3v2h12v-2zM3,16h8v-2H3V16zM17,6v8.18C16.69,14.07 16.35,14 16,14c-1.66,0 -3,1.34 -3,3s1.34,3 3,3 3,-1.34 3,-3V8h3V6H17z"/></svg></div>
+        <h3>Playlist</h3><p>Raccogli i video per tema, epoca o personaggio e riguardali quando vuoi.</p></div>
+      <div class="funzione sale"><div class="icona"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM10,16.5v-9l6,4.5 -6,4.5z"/></svg></div>
+        <h3>Su YouTube in un tocco</h3><p>Ogni video si apre su YouTube o si condivide con chi vuoi.</p></div>
+      <div class="funzione sale"><div class="icona"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16,11c1.66,0 2.99,-1.34 2.99,-3S17.66,5 16,5c-1.66,0 -3,1.34 -3,3s1.34,3 3,3zM8,11c1.66,0 2.99,-1.34 2.99,-3S9.66,5 8,5C6.34,5 5,6.34 5,8s1.34,3 3,3zM8,13c-2.33,0 -7,1.17 -7,3.5V19h14v-2.5c0,-2.33 -4.67,-3.5 -7,-3.5zM16,13c-0.29,0 -0.62,0.02 -0.97,0.05 1.16,0.84 1.97,1.97 1.97,3.45V19h6v-2.5c0,-2.33 -4.67,-3.5 -7,-3.5z"/></svg></div>
+        <h3>La community</h3><p>Il canale, il gruppo Facebook, Instagram e il sito della Biblioteca, a un tocco dalla home.</p></div>
+      <div class="funzione sale"><div class="icona"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,1L3,5v6c0,5.55 3.84,10.74 9,12 5.16,-1.26 9,-6.45 9,-12V5L12,1zM10,17l-4,-4 1.41,-1.41L10,14.17l6.59,-6.59L18,9l-8,8z"/></svg></div>
+        <h3>Nessun account</h3><p>Niente registrazione e nessun dato raccolto: l'app legge la ricerca del sito, come il browser.</p></div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="largo">
+    <div class="capo sale"><span class="incisa">Le schermate</span><h2>Com'è fatta</h2></div>
+    <div class="galleria">
+      <figure><img src="schermata-home.webp" alt="La home" loading="lazy" width="540" height="1145"><figcaption>La home</figcaption></figure>
+      <figure><img src="schermata-cerca.webp" alt="La ricerca" loading="lazy" width="540" height="1145"><figcaption>La ricerca</figcaption></figure>
+      <figure><img src="schermata-donazioni.webp" alt="Sostieni l'app" loading="lazy" width="540" height="1145"><figcaption>Sostieni l'app</figcaption></figure>
+      <figure><img src="schermata-crediti.webp" alt="I crediti" loading="lazy" width="540" height="1145"><figcaption>I crediti</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section id="dona" style="padding-top:0">
+  <div class="largo">
+    <div class="dona sale">
+      <div class="cuore"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,21.35l-1.45,-1.32C5.4,15.36 2,12.28 2,8.5 2,5.42 4.42,3 7.5,3c1.74,0 3.41,0.81 4.5,2.09C13.09,3.81 14.76,3 16.5,3 19.58,3 22,5.42 22,8.5c0,3.78 -3.4,6.86 -8.55,11.54L12,21.35z"/></svg></div>
+      <div><h2>Sostieni l'app</h2>
+        <p>L'app è gratuita e senza pubblicità. Se ti è utile, una donazione aiuta lo sviluppatore, Alfonso Vertucci, a
+          mantenerla e migliorarla. Va allo sviluppo dell'app, non alla Biblioteca di Alessandria; il link è presente con il
+          permesso della Biblioteca.</p></div>
+      <a class="btn oro" href="https://www.paypal.com/biz/profile/alfonsovertucci" rel="noopener">Dona con PayPal</a>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="largo">
+    <div class="capo sale"><span class="incisa">Installazione</span><h2>In tre passi</h2></div>
+    <div class="passi">
+      <div class="passo sale"><p>Dal telefono Android tocca «Scarica l'app».</p></div>
+      <div class="passo sale"><p>Apri il file scaricato e, se Android lo chiede, consenti l'installazione da questa fonte.</p></div>
+      <div class="passo sale"><p>Apri «La Biblioteca di Alessandria» e cerca il primo video.</p></div>
+    </div>
+    <p class="avvertenza">Contenuti, catalogo e video sono della Biblioteca di Alessandria e dei suoi volontari: l'app li rende
+      solo più comodi da cercare e non è affiliata al canale. Il codice è aperto su
+      <a href="https://github.com/AlfonsoVertu/biblioteca-alessandria-android">GitHub</a>.</p>
+  </div>
+</section>
+
 <footer>
-  <nav class="tre" aria-label="Gli altri progetti">
-    <a href="https://workingwithweb.it/webagency/"><strong>Video Tickets</strong><span>Per creator e influencer</span></a>
-    <a href="https://soway.workingwithweb.eu/"><strong>SoWay</strong><span>Per le aziende</span></a>
-    <a href="https://mondo.workingwithweb.eu/"><strong>Another Wilde Web</strong><span>Il browser e il gioco</span></a>
-  </nav>
+  <div class="largo">
+    <nav class="tre" aria-label="Gli altri progetti">
+      <a href="https://workingwithweb.it/webagency/"><span class="incisa">Video Tickets</span><strong>Per creator e influencer</strong><span>La vetrina dei tuoi video</span></a>
+      <a href="https://soway.workingwithweb.eu/"><span class="incisa">SoWay</span><strong>Per le aziende</strong><span>Gestionale, sito e assistente</span></a>
+      <a href="https://mondo.workingwithweb.eu/"><span class="incisa">Another Wilde Web</span><strong>Il browser e il gioco</strong><span>Un mondo da esplorare</span></a>
+    </nav>
+    <div class="firma">Un progetto di WorkingWithWeb</div>
+  </div>
 </footer>
+
+<script>
+  // le sezioni salgono piano quando entrano nello schermo; restano sempre leggibili anche senza script
+  (function () {
+    if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var els = document.querySelectorAll('.sale');
+    var oss = new IntersectionObserver(function (voci) {
+      voci.forEach(function (v) { if (v.isIntersecting) { v.target.classList.remove('attesa'); oss.unobserve(v.target); } });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    els.forEach(function (el, i) {
+      var r = el.getBoundingClientRect();
+      if (r.top > innerHeight) { el.classList.add('attesa'); el.style.transitionDelay = (i % 3) * 80 + 'ms'; oss.observe(el); }
+    });
+  })();
+</script>
 </body>
 </html>
