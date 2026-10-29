@@ -48,17 +48,19 @@ import java.net.URL
  */
 /** Donazioni allo sviluppatore dell'app (Crediti → Sostieni l'app). */
 private const val DONAZIONI = "https://www.paypal.com/biz/profile/alfonsovertucci"
+/** Il canale YouTube della Biblioteca (lo stesso link del loro sito). */
+private const val CANALE = "https://www.youtube.com/@laBibliotecadiAlessandria"
 
 class RicercaActivity : Activity() {
 
-    private enum class Scheda { CERCA, PREFERITI, PLAYLIST, CREDITI }
+    private enum class Scheda { HOME, CERCA, PREFERITI, PLAYLIST, CREDITI }
 
     private val ambito = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private lateinit var corpo: LinearLayout
     private lateinit var scorrimento: ScrollView
 
-    private var scheda = Scheda.CERCA
+    private var scheda = Scheda.HOME
     private var playlistAperta: String? = null
 
     private var testo = ""
@@ -87,6 +89,13 @@ class RicercaActivity : Activity() {
         caricaFiltri()
     }
 
+    /** Dalle sezioni il tasto indietro torna alla home; dalla home chiude l'app. */
+    @Deprecated("Activity semplice senza OnBackPressedDispatcher")
+    override fun onBackPressed() {
+        if (scheda != Scheda.HOME) { scheda = Scheda.HOME; playlistAperta = null; disegna(); scorrimento.scrollTo(0, 0) }
+        else @Suppress("DEPRECATION") super.onBackPressed()
+    }
+
     override fun onDestroy() {
         ambito.cancel()
         super.onDestroy()
@@ -97,7 +106,10 @@ class RicercaActivity : Activity() {
     private fun disegna() {
         idPreferiti = Libreria.idPreferiti(this)
         corpo.removeAllViews()
-        corpo.addView(testata())
+        // (29/10, Alfonso) sulla home, e in Cerca quando non c'e' nessuna ricerca e i filtri sono chiusi, sotto
+        // resta spazio vuoto: li' il banner si allarga invece di lasciare il buco
+        val vuota = scheda == Scheda.CERCA && !filtriAperti && totale == null && !cercando && errore == null
+        corpo.addView(testata(grande = scheda == Scheda.HOME || vuota))
 
         val dentro = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -107,6 +119,7 @@ class RicercaActivity : Activity() {
         dentro.addView(navBar(), sotto(12))
 
         when (scheda) {
+            Scheda.HOME -> disegnaHome(dentro)
             Scheda.CERCA -> disegnaCerca(dentro)
             Scheda.PREFERITI -> disegnaPreferiti(dentro)
             Scheda.PLAYLIST -> disegnaPlaylist(dentro)
@@ -122,17 +135,68 @@ class RicercaActivity : Activity() {
         scorrimento.post { scorrimento.scrollTo(0, y) }
     }
 
-    private fun testata(): View {
+    private fun testata(grande: Boolean = false): View {
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         box.addView(ImageView(this).apply {
             setImageResource(R.drawable.banner_sito)
             scaleType = ImageView.ScaleType.CENTER_CROP
-            adjustViewBounds = true
+            adjustViewBounds = !grande
             contentDescription = "La Biblioteca di Alessandria"
             setOnClickListener { apri(Biblioteca.SITO + "/") }
-        }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+        }, LinearLayout.LayoutParams(MATCH_PARENT,
+            if (grande) (resources.displayMetrics.heightPixels * 0.34f).toInt() else WRAP_CONTENT))
         return box
     }
+
+    // ── home: mattonelle per le sezioni, poi le donazioni ───────────
+
+    private fun disegnaHome(dentro: LinearLayout) {
+        val voci = listOf(
+            Triple("🔍", "Cerca i video") { scheda = Scheda.CERCA; disegna() },
+            Triple("★", "Preferiti") { scheda = Scheda.PREFERITI; disegna() },
+            Triple("☰", "Playlist") { playlistAperta = null; scheda = Scheda.PLAYLIST; disegna() },
+            Triple("▶", "Canale YouTube") { apri(CANALE) },
+            Triple("🌐", "Il sito") { apri(Biblioteca.SITO + "/") },
+            Triple("ℹ", "Crediti") { scheda = Scheda.CREDITI; disegna() },
+        )
+        voci.chunked(2).forEach { coppia ->
+            val riga = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            coppia.forEachIndexed { i, (icona, nome, vai) ->
+                riga.addView(mattonella(icona, nome, vai), LinearLayout.LayoutParams(0, dp(116), 1f).apply {
+                    if (i == 0) rightMargin = dp(6) else leftMargin = dp(6)
+                })
+            }
+            dentro.addView(riga, sotto(12))
+        }
+
+        val dona = card()
+        dona.addView(titoletto("Sostieni l'app"))
+        dona.addView(nota("L'app e' gratuita e senza pubblicita'. Se ti e' utile puoi fare una donazione a chi " +
+            "l'ha sviluppata (Alfonso Vertucci): va allo sviluppo dell'app, non alla Biblioteca di Alessandria."))
+        dona.addView(bottone("Dona con PayPal", pieno = true) { apri(DONAZIONI) }, sopra(8))
+        dentro.addView(dona, sotto(12))
+        dentro.addView(nota("App non ufficiale della community · i video sono della Biblioteca di Alessandria"))
+    }
+
+    private fun mattonella(icona: String, nome: String, vai: () -> Unit): View =
+        LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            background = sfondo(colore(R.color.card), colore(R.color.bordo), 14)
+            isClickable = true
+            setOnClickListener { vai() }
+            contentDescription = nome
+            addView(TextView(this@RicercaActivity).apply {
+                text = icona; textSize = 30f; gravity = Gravity.CENTER
+                setTextColor(colore(R.color.oro))
+            })
+            addView(TextView(this@RicercaActivity).apply {
+                text = nome; textSize = 15f; gravity = Gravity.CENTER
+                setTypeface(Typeface.SERIF, Typeface.BOLD)
+                setTextColor(colore(R.color.testo))
+                setPadding(dp(6), dp(6), dp(6), 0)
+            })
+        }
 
     private fun navBar(): View {
         val riga = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -150,6 +214,7 @@ class RicercaActivity : Activity() {
                 leftMargin = dp(3); rightMargin = dp(3)
             })
         }
+        voce("Home", Scheda.HOME)
         voce("Cerca", Scheda.CERCA)
         voce("Preferiti", Scheda.PREFERITI)
         voce("Playlist", Scheda.PLAYLIST)
@@ -357,6 +422,7 @@ class RicercaActivity : Activity() {
         card.addView(bottone("Vai al sito · bibliotecadialessandria.it", pieno = true) {
             apri(Biblioteca.SITO + "/")
         }, sopra(8))
+        card.addView(bottone("Il canale YouTube della Biblioteca") { apri(CANALE) }, sopra(8))
 
         card.addView(titoletto("Chi ha fatto l'app"), sopra(16))
         card.addView(nota("Sviluppata da WorkingWithWeb come app della community, gratuita e a codice aperto."))

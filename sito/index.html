@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La Biblioteca di Alessandria — app Android non ufficiale</title>
+<meta name="description" content="App Android gratuita e non ufficiale per cercare i video di storia di bibliotecadialessandria.it con tutti i filtri del sito, preferiti e playlist.">
+<link rel="icon" href="icona.png" type="image/png">
+<meta property="og:title" content="La Biblioteca di Alessandria — app Android">
+<meta property="og:description" content="Cerca i video di storia della Biblioteca di Alessandria dal telefono, con tutti i filtri del sito.">
+<meta property="og:image" content="https://mondo.workingwithweb.eu/biblioteca-alessandria/icona.png">
+<style>
+  /* (29/10/2026) la pagina dell'app: stessi colori dell'app (res/values/colors.xml) */
+  :root { --fondo:#15100c; --card:#231a13; --bordo:#3a2c20; --testo:#f3ebdd; --tenue:#b9a68e; --oro:#d4a452; --su-oro:#1b130c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--testo); font: 17px/1.6 Georgia, "Times New Roman", serif; }
+  a { color: var(--oro); }
+  .pagina { max-width: 760px; margin: 0 auto; padding: 32px 16px 24px; }
+  header { text-align: center; padding: 24px 0 8px; }
+  header img { width: 112px; height: 112px; border-radius: 24px; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 16px 0 4px; }
+  .sotto { color: var(--tenue); margin: 0 0 24px; font-size: .95rem; }
+  .card { background: var(--card); border: 1px solid var(--bordo); border-radius: 14px; padding: 20px; margin: 16px 0; }
+  .card h2 { font-size: 1.2rem; margin: 0 0 8px; color: var(--oro); }
+  .card p { margin: 8px 0; }
+  ul { margin: 8px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  .bottone { display: inline-block; background: var(--oro); color: var(--su-oro); text-decoration: none; font-weight: bold;
+             padding: 12px 22px; border-radius: 10px; margin: 8px 8px 0 0; }
+  .bottone.vuoto { background: transparent; color: var(--oro); border: 1px solid var(--oro); }
+  .nota { color: var(--tenue); font-size: .9rem; }
+  footer { border-top: 1px solid var(--bordo); margin-top: 32px; padding: 24px 16px 32px; }
+  .tre { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .tre a { display: block; background: var(--card); border: 1px solid var(--bordo); border-radius: 12px; padding: 14px;
+           text-decoration: none; color: var(--testo); }
+  .tre strong { display: block; color: var(--oro); }
+  .tre span { color: var(--tenue); font-size: .88rem; }
+  @media (max-width: 640px) { .tre { grid-template-columns: 1fr; } h1 { font-size: 1.6rem; } }
+</style>
+</head>
+<body>
+<div class="pagina">
+  <header>
+    <img src="icona.png" alt="Icona dell'app La Biblioteca di Alessandria">
+    <h1>La Biblioteca di Alessandria</h1>
+    <p class="sotto">App Android non ufficiale, gratuita e senza pubblicità, fatta da un fan della community</p>
+    <a class="bottone" href="La-Biblioteca-di-Alessandria-1.2.0.apk" download>Scarica l'app per Android (1.2.0)</a>
+  </header>
+
+  <section class="card">
+    <h2>Cosa fa</h2>
+    <p>Cerca i video di storia di <a href="https://www.bibliotecadialessandria.it/">bibliotecadialessandria.it</a>
+      dal telefono, con tutti i filtri del sito: tipo, categoria, periodo, zona, serie, personaggi, luoghi, date e durata.</p>
+    <ul>
+      <li>Preferiti e playlist, salvati solo sul tuo telefono.</li>
+      <li>Ogni video si guarda su YouTube o si condivide con un'altra app.</li>
+      <li>Nessun account, nessun dato raccolto, nessun server in mezzo: l'app legge la ricerca del sito come fa il browser.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Sostieni l'app</h2>
+    <p>L'app è gratuita. Se ti è utile puoi fare una donazione allo sviluppatore, Alfonso Vertucci, per aiutarlo a
+      mantenerla e a migliorarla.</p>
+    <p class="nota">La donazione va allo sviluppo dell'app, non alla Biblioteca di Alessandria. Il link alle donazioni
+      è presente con il permesso della Biblioteca.</p>
+    <a class="bottone" href="https://www.paypal.com/biz/profile/alfonsovertucci" rel="noopener">Dona con PayPal</a>
+  </section>
+
+  <section class="card">
+    <h2>Installazione</h2>
+    <p>Scarica il file .apk dal telefono e aprilo. Se Android lo chiede, consenti l'installazione da questa fonte.
+      Il codice è aperto e si può controllare su
+      <a href="https://github.com/AlfonsoVertu/biblioteca-alessandria-android">GitHub</a>.</p>
+    <p class="nota">Contenuti, catalogo e video sono della Biblioteca di Alessandria e dei suoi volontari. Questa app li
+      rende solo più comodi da cercare e non è affiliata al canale.</p>
+  </section>
+</div>
+
+<footer>
+  <nav class="tre" aria-label="Gli altri progetti">
+    <a href="https://workingwithweb.it/webagency/"><strong>Video Tickets</strong><span>Per creator e influencer</span></a>
+    <a href="https://soway.workingwithweb.eu/"><strong>SoWay</strong><span>Per le aziende</span></a>
+    <a href="https://mondo.workingwithweb.eu/"><strong>Another Wilde Web</strong><span>Il browser e il gioco</span></a>
+  </nav>
+</footer>
+</body>
+</html>
