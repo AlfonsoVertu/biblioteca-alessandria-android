@@ -28,6 +28,7 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -82,6 +83,8 @@ class RicercaActivity : Activity() {
     private var caricando = false
     private var errore: String? = null
     private var filtriAperti = false
+    private val cercaGruppo = mutableMapOf<String, String>()
+    private val gruppiEspansi = mutableSetOf<String>()
 
     // (29/10) le novità del canale, come su YouTube: video, short e live, e la scheda dei post
     private var tipoNovita = Canale.Tipo.VIDEO
@@ -405,25 +408,17 @@ class RicercaActivity : Activity() {
                 LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { leftMargin = dp(4) })
             filtri.addView(riga, sopra(6))
             val caselle = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-            g.opzioni.chunked(2).forEach { coppia ->
-                val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-                coppia.forEach { o ->
-                    r.addView(casella(o.etichetta, o.campo in acc) { on ->
-                        if (on) acc.add(o.campo) else acc.remove(o.campo)
-                    }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-                }
-                if (coppia.size == 1) r.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
-                caselle.addView(r)
-            }
             if (g.opzioni.size > 16) {
-                val finestra = ScrollView(this).apply {
-                    addView(caselle, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-                    setOnTouchListener { v, _ -> v.parent.requestDisallowInterceptTouchEvent(true); false }
-                }
-                filtri.addView(finestra, LinearLayout.LayoutParams(MATCH_PARENT, dp(260)).apply { topMargin = dp(6) })
+                // (29/10, Gioele: «è difficile scorrere» fra le 88 serie) niente piu' riquadro che scorre dentro
+                // la pagina e si prende il dito: una casella per cercare, le scelte in cima, le altre a richiesta
+                val cerca = campo("Cerca fra le ${g.opzioni.size} ${g.titolo.lowercase()}...", cercaGruppo[g.titolo].orEmpty())
+                cerca.addTextChangedListener(ricorda { cercaGruppo[g.titolo] = it; riempiCaselle(caselle, g, acc) })
+                filtri.addView(cerca, sopra(8))
+                riempiCaselle(caselle, g, acc)
             } else {
-                filtri.addView(caselle, sopra(6))
+                riempiCaselle(caselle, g, acc)
             }
+            filtri.addView(caselle, sopra(6))
         }
         filtri.addView(titoletto("Personaggi, luoghi e altro"), sopra(14))
         m.attributi.forEach { filtri.addView(campoFiltro(it), sopra(8)) }
@@ -435,6 +430,40 @@ class RicercaActivity : Activity() {
         filtri.addView(bottone("Rimetti i filtri come all'inizio") {
             accese = predefinite(m); valori.clear(); disegna()
         }, sopra(8))
+    }
+
+    /** Le caselle di un gruppo di filtri. Nei gruppi lunghi: prima quelle scelte, poi le altre che
+     *  corrispondono alla ricerca, 12 alla volta con «Mostra tutte». Si ridisegna solo questo riquadro,
+     *  cosi' la tastiera resta aperta mentre si scrive. */
+    private fun riempiCaselle(caselle: LinearLayout, g: Biblioteca.Gruppo, acc: MutableSet<String>) {
+        caselle.removeAllViews()
+        val lungo = g.opzioni.size > 16
+        val q = cercaGruppo[g.titolo].orEmpty().trim().lowercase()
+        var elenco = g.opzioni
+        if (lungo) {
+            val trovate = g.opzioni.filter { q.isEmpty() || it.etichetta.lowercase().contains(q) }
+            elenco = trovate.filter { it.campo in acc } + trovate.filter { it.campo !in acc }
+        }
+        val tutte = !lungo || g.titolo in gruppiEspansi || q.isNotEmpty()
+        val visibili = if (tutte) elenco else elenco.take(12)
+        if (lungo && elenco.isEmpty()) caselle.addView(nota("Nessuna voce con \"$q\"."))
+        visibili.chunked(2).forEach { coppia ->
+            val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            coppia.forEach { o ->
+                r.addView(casella(o.etichetta, o.campo in acc) { on ->
+                    if (on) acc.add(o.campo) else acc.remove(o.campo)
+                }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            }
+            if (coppia.size == 1) r.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
+            caselle.addView(r)
+        }
+        if (lungo && q.isEmpty() && elenco.size > 12) {
+            val aperto = g.titolo in gruppiEspansi
+            caselle.addView(bottone(if (aperto) "Mostra meno ▲" else "Mostra tutte (${elenco.size}) ▼") {
+                if (aperto) gruppiEspansi.remove(g.titolo) else gruppiEspansi.add(g.titolo)
+                riempiCaselle(caselle, g, acc)
+            }, sopra(6))
+        }
     }
 
     // ── scheda: preferiti ────────────────────────────────────────────
@@ -470,7 +499,7 @@ class RicercaActivity : Activity() {
                     gravity = Gravity.CENTER_VERTICAL
                     background = sfondo(colore(R.color.fondo), colore(R.color.bordo), 10)
                     setPadding(dp(14), dp(12), dp(14), dp(12))
-                    setOnClickListener { playlistAperta = nome; disegna() }
+                    setOnClickListener { apriPlaylist(nome) }
                 }
                 val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
                 box.addView(titoletto(nome))
@@ -490,8 +519,29 @@ class RicercaActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             setOnClickListener { playlistAperta = null; disegna() }
         }
-        cap.addView(nota("‹ Playlist"))
+        cap.addView(nota("‹ Tutte le playlist"))
         card.addView(cap, sotto(8))
+        // (29/10, Gioele: «non è comodissimo muoversi tra le playlist») tutte le playlist in una fila
+        // che scorre di lato: si passa dall'una all'altra con un tocco, senza tornare all'elenco
+        val nomi = Libreria.nomiPlaylist(this)
+        if (nomi.size > 1) {
+            val fila = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            nomi.forEach { n ->
+                fila.addView(TextView(this).apply {
+                    text = n; textSize = 14f; setPadding(dp(14), dp(8), dp(14), dp(8))
+                    val scelta = n == nome
+                    setTextColor(colore(if (scelta) R.color.su_oro else R.color.testo))
+                    background = sfondo(colore(if (scelta) R.color.oro else R.color.fondo),
+                        colore(if (scelta) R.color.oro else R.color.bordo), 18)
+                    setOnClickListener { if (!scelta) apriPlaylist(n) }
+                }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { rightMargin = dp(8) })
+            }
+            val striscia = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(fila) }
+            card.addView(striscia, sotto(12))
+            striscia.post {
+                fila.getChildAt(nomi.indexOf(nome))?.let { striscia.scrollTo((it.left - dp(16)).coerceAtLeast(0), 0) }
+            }
+        }
         card.addView(titoletto(nome), sotto(2))
         val video = Libreria.contenuto(this, nome)
         card.addView(nota("${video.size} video · su questo telefono"), sotto(8))
@@ -502,6 +552,11 @@ class RicercaActivity : Activity() {
         }
         card.addView(bottone("Elimina questa playlist") { chiediElimina(nome) }, sopra(10))
         dentro.addView(card, sotto(12))
+    }
+
+    /** Apre una playlist dall'inizio (prima restava la posizione di scorrimento della pagina precedente). */
+    private fun apriPlaylist(nome: String) {
+        playlistAperta = nome; disegna(); scorrimento.post { scorrimento.scrollTo(0, 0) }
     }
 
     // ── scheda: crediti ──────────────────────────────────────────────
