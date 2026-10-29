@@ -41,5 +41,8 @@ fine_dona = s.index('</section>', s.index('<section id="dona"')) + len('</sectio
 s = s[:fine_dona] + """
 
 """ + SEZIONE.replace('<section>', '<section style="padding-top:0">', 1).rstrip() + s[fine_dona:]
+# (29/10, Alfonso) su Somnio niente rimandi a Video Tickets, SoWay e al browser: resta solo la firma
+import re as _re
+s = _re.sub(r'\s*<nav class="tre"[^>]*>.*?</nav>', '', s, count=1, flags=_re.S)
 open(sys.argv[2], 'w', encoding='utf-8').write(s)
 print('pagina per Somnio scritta')
