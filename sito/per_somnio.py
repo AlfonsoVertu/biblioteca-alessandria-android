@@ -23,9 +23,17 @@ rep('''<section>
     <div class="dona sale" style="background:linear-gradient(130deg, rgba(120,140,220,.18), var(--lastra) 55%);border-color:rgba(160,175,240,.35)">
       <div class="cuore" style="animation:none;background:rgba(160,175,240,.16)"><svg viewBox="0 0 24 24" aria-hidden="true" style="fill:#c9d2ff"><path d="M12.34,2.02C6.59,1.82 2,6.42 2,12c0,5.52 4.48,10 10,10 3.71,0 6.93,-2.02 8.66,-5.02 -7.51,-0.25 -12.09,-8.43 -8.32,-14.96z"/></svg></div>
       <div><h2>La storia, prima di dormire</h2>
-        <p>Apri un video nell'app, tocca «Condividi» e scegli «Aggiungi alla libreria di Somnio». Lo ritrovi nel cuscino:
-          parte a volume basso, una campanellina chiede se dormi e, se non rispondi, tutto si spegne da solo.</p></div>
-      <a class="btn vetro" href="https://somnio.workingwithweb.eu/">Scopri Somnio</a>
+        <p>Per ascoltare i video della Biblioteca mentre ti addormenti serve <strong>anche l'app Somnio</strong>, un'app
+          diversa da questa: è quella del cuscino Somnio.</p>
+        <ol style="margin:10px 0 0;padding-left:22px;color:var(--cenere)">
+          <li>Scarica e installa anche l'app Somnio.</li>
+          <li>Nell'app della Biblioteca apri un video, tocca «Condividi» e scegli «Aggiungi alla libreria di Somnio».</li>
+          <li>Ascoltalo da Somnio: parte a volume basso, una campanellina chiede se dormi e, se non rispondi, si spegne da solo.</li>
+        </ol></div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <a class="btn oro" href="https://soway.workingwithweb.eu/app/scarica/somnio">Scarica l'app Somnio</a>
+        <a class="btn vetro" href="https://somnio.workingwithweb.eu/">Scopri il cuscino</a>
+      </div>
     </div>
   </div>
 </section>
