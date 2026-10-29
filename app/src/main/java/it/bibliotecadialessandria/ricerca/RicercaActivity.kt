@@ -46,6 +46,9 @@ import java.net.URL
  * Playlist (salvati solo sul telefono, vedi Libreria), Crediti. Il tasto
  * «Condividi» di ogni video offre YouTube, la libreria di Somnio o altre app.
  */
+/** Donazioni allo sviluppatore dell'app (Crediti → Sostieni l'app). */
+private const val DONAZIONI = "https://www.paypal.com/biz/profile/alfonsovertucci"
+
 class RicercaActivity : Activity() {
 
     private enum class Scheda { CERCA, PREFERITI, PLAYLIST, CREDITI }
@@ -363,6 +366,13 @@ class RicercaActivity : Activity() {
         card.addView(bottone("Codice sorgente su GitHub") {
             apri("https://github.com/AlfonsoVertu/biblioteca-alessandria-android")
         }, sopra(8))
+
+        // (29/10/2026, con il permesso di Gioele Sasso della Biblioteca) le donazioni vanno allo sviluppatore,
+        // non alla Biblioteca: lo dice il testo, perche' l'app porta il loro nome
+        card.addView(titoletto("Sostieni l'app"), sopra(16))
+        card.addView(nota("L'app e' gratuita e senza pubblicita'. Se ti e' utile puoi fare una donazione a chi " +
+            "l'ha sviluppata (Alfonso Vertucci): va allo sviluppo dell'app, non alla Biblioteca di Alessandria."))
+        card.addView(bottone("Dona con PayPal", pieno = true) { apri(DONAZIONI) }, sopra(8))
 
         dentro.addView(card, sotto(12))
     }
