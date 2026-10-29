@@ -41,11 +41,14 @@ object Notifiche {
         if (!attive(c)) return
         val js = c.getSystemService(JobScheduler::class.java)
         if (js.allPendingJobs.any { it.id == LAVORO }) return
-        js.schedule(JobInfo.Builder(LAVORO, ComponentName(c, ControlloNovita::class.java))
-            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-            .setPeriodic(3 * 60 * 60 * 1000L)
-            .setPersisted(true)
-            .build())
+        // le notifiche non devono mai far chiudere l'app: se il sistema rifiuta il lavoro, l'app va avanti senza
+        runCatching {
+            js.schedule(JobInfo.Builder(LAVORO, ComponentName(c, ControlloNovita::class.java))
+                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                .setPeriodic(3 * 60 * 60 * 1000L)
+                .setPersisted(true)
+                .build())
+        }
     }
 
     internal suspend fun controlla(c: Context) {

@@ -5,6 +5,8 @@
     <!-- (29/10) le notifiche dei video nuovi: il permesso (Android 13+) e il riavvio del controllo dopo lo spegnimento -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- da Android 14 un lavoro che chiede la rete deve poterla controllare (29/10: senza, crash all'avvio) -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- Da Android 11 un'app vede le altre solo se le dichiara: servono per
          sapere se Somnio c'e' (per "Aggiungi alla libreria Somnio") e per
