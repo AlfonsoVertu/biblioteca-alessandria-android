@@ -1,8 +1,10 @@
 package it.bibliotecadialessandria.ricerca
 
+import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -10,6 +12,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.InputType
@@ -28,6 +31,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -58,7 +62,7 @@ private const val INSTAGRAM = "https://www.instagram.com/bibliotecadialessandria
 
 class RicercaActivity : Activity() {
 
-    private enum class Scheda { HOME, CERCA, PREFERITI, PLAYLIST, CREDITI }
+    private enum class Scheda { HOME, CERCA, NOVITA, POST, PREFERITI, PLAYLIST, CREDITI }
 
     private val ambito = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -79,6 +83,15 @@ class RicercaActivity : Activity() {
     private var errore: String? = null
     private var filtriAperti = false
 
+    // (29/10) le novità del canale, come su YouTube: video, short e live, e la scheda dei post
+    private var tipoNovita = Canale.Tipo.VIDEO
+    private val novita = mutableMapOf<Canale.Tipo, List<Biblioteca.Video>>()
+    private val novitaInCarico = mutableSetOf<Canale.Tipo>()
+    private var erroreNovita: String? = null
+    private var post: List<Canale.Post>? = null
+    private var postInCarico = false
+    private var errorePost: String? = null
+
     /** Insieme degli id preferiti, aggiornato una volta per disegno (evita N letture di SharedPreferences). */
     private var idPreferiti: Set<String> = emptySet()
 
@@ -92,6 +105,12 @@ class RicercaActivity : Activity() {
         setContentView(scorrimento)
         disegna()
         caricaFiltri()
+        // le notifiche dei video nuovi: il controllo periodico e, da Android 13, il permesso
+        Notifiche.programma(this)
+        if (Build.VERSION.SDK_INT >= 33 && Notifiche.attive(this) &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+        }
     }
 
     /** Dalle sezioni il tasto indietro torna alla home; dalla home chiude l'app. */
@@ -126,6 +145,8 @@ class RicercaActivity : Activity() {
         when (scheda) {
             Scheda.HOME -> disegnaHome(dentro)
             Scheda.CERCA -> disegnaCerca(dentro)
+            Scheda.NOVITA -> disegnaNovita(dentro)
+            Scheda.POST -> disegnaPost(dentro)
             Scheda.PREFERITI -> disegnaPreferiti(dentro)
             Scheda.PLAYLIST -> disegnaPlaylist(dentro)
             Scheda.CREDITI -> disegnaCrediti(dentro)
@@ -198,6 +219,8 @@ class RicercaActivity : Activity() {
     private fun disegnaHome(dentro: LinearLayout) {
         class Voce(val icona: Int, val nome: String, val sotto: String, val vai: () -> Unit)
         val voci = listOf(
+            Voce(R.drawable.ic_novita, "Novità", "Video, short e live") { scheda = Scheda.NOVITA; disegna() },
+            Voce(R.drawable.ic_post, "Post", "Dal canale") { scheda = Scheda.POST; disegna() },
             Voce(R.drawable.ic_cerca, "Cerca", "Tutti i filtri del sito") { scheda = Scheda.CERCA; disegna() },
             Voce(R.drawable.ic_preferiti, "Preferiti", "I video salvati") { scheda = Scheda.PREFERITI; disegna() },
             Voce(R.drawable.ic_playlist, "Playlist", "Le tue raccolte") { playlistAperta = null; scheda = Scheda.PLAYLIST; disegna() },
@@ -216,6 +239,7 @@ class RicercaActivity : Activity() {
             }
             dentro.addView(riga, sotto(12))
         }
+        dentro.addView(cartaNotifiche(), sotto(12))
         dentro.addView(cartaDona(), sopra(4))
         dentro.addView(nota("App non ufficiale della community · i video sono della Biblioteca di Alessandria").apply {
             gravity = Gravity.CENTER; setPadding(0, dp(16), 0, 0)
@@ -305,10 +329,11 @@ class RicercaActivity : Activity() {
                 leftMargin = dp(3); rightMargin = dp(3)
             })
         }
+        // (29/10) Preferiti e Playlist restano sulle mattonelle della home: la barra tiene le cinque più usate
         voce("Home", Scheda.HOME)
         voce("Cerca", Scheda.CERCA)
-        voce("Preferiti", Scheda.PREFERITI)
-        voce("Playlist", Scheda.PLAYLIST)
+        voce("Novità", Scheda.NOVITA)
+        voce("Post", Scheda.POST)
         voce("Crediti", Scheda.CREDITI)
         return riga
     }
@@ -728,6 +753,150 @@ class RicercaActivity : Activity() {
             anteprime[v.youtubeId] = b
             b?.let(dove::setImageBitmap)
         }
+    }
+
+    // ── novità: video, short e live del canale ───────────────────────
+
+    private fun disegnaNovita(dentro: LinearLayout) {
+        val pillole = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        Canale.Tipo.values().forEach { t ->
+            val attiva = t == tipoNovita
+            pillole.addView(Button(this).apply {
+                text = t.nome; isAllCaps = false; textSize = 14f; stateListAnimator = null
+                setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                setTextColor(colore(if (attiva) R.color.su_oro else R.color.testo))
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(22).toFloat()
+                    if (attiva) setColor(colore(R.color.oro)) else { setColor(colore(R.color.card)); setStroke(dp(1), colore(R.color.bordo)) }
+                }
+                setOnClickListener { tipoNovita = t; disegna(); caricaNovita(t) }
+            }, LinearLayout.LayoutParams(0, dp(44), 1f).apply { leftMargin = dp(3); rightMargin = dp(3) })
+        }
+        dentro.addView(pillole, sotto(14))
+        val lista = novita[tipoNovita]
+        val ris = card()
+        when {
+            lista == null && erroreNovita != null -> {
+                ris.addView(nota(erroreNovita!!), sotto(8))
+                ris.addView(bottone("Riprova") { erroreNovita = null; caricaNovita(tipoNovita, forza = true) })
+            }
+            lista == null -> { ris.addView(nota("Carico gli ultimi ${tipoNovita.nome.lowercase()} del canale...")); caricaNovita(tipoNovita) }
+            lista.isEmpty() -> ris.addView(nota("Nessun ${tipoNovita.nome.lowercase()} per ora."))
+            else -> {
+                ris.addView(etichetta("Gli ultimi ${lista.size} · ${tipoNovita.nome}"), sotto(8))
+                lista.forEach { ris.addView(rigaVideo(it), sotto(14)) }
+            }
+        }
+        dentro.addView(ris, sotto(12))
+        dentro.addView(bottone("Apri il canale su YouTube") { apri(CANALE) })
+    }
+
+    private fun caricaNovita(t: Canale.Tipo, forza: Boolean = false) {
+        if (t in novitaInCarico || (!forza && novita.containsKey(t))) return
+        novitaInCarico.add(t)
+        ambito.launch {
+            runCatching { Canale.ultimi(t) }
+                .onSuccess { novita[t] = it }
+                .onFailure { erroreNovita = "Il canale non risponde. Controlla la connessione e riprova." }
+            novitaInCarico.remove(t)
+            if (scheda == Scheda.NOVITA) ridisegna()
+        }
+    }
+
+    // ── post del canale ──────────────────────────────────────────────
+
+    private fun disegnaPost(dentro: LinearLayout) {
+        val elenco = post
+        when {
+            elenco == null && errorePost != null -> {
+                val c = card(); c.addView(nota(errorePost!!), sotto(8))
+                c.addView(bottone("Riprova") { errorePost = null; caricaPost() }); dentro.addView(c, sotto(12))
+            }
+            elenco == null -> { val c = card(); c.addView(nota("Carico i post del canale...")); dentro.addView(c, sotto(12)); caricaPost() }
+            elenco.isEmpty() -> { val c = card(); c.addView(nota("Nessun post da mostrare: guardali sul canale.")); dentro.addView(c, sotto(12)) }
+            else -> elenco.forEach { dentro.addView(cartaPost(it), sotto(12)) }
+        }
+        dentro.addView(bottone("Tutti i post sul canale") { apri(Canale.PAGINA + "/posts") })
+    }
+
+    private fun cartaPost(p: Canale.Post): View {
+        val c = card()
+        val testa = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        testa.addView(ImageView(this).apply { setImageResource(R.mipmap.ic_launcher_foreground) },
+            LinearLayout.LayoutParams(dp(36), dp(36)).apply { rightMargin = dp(8) })
+        val nomi = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        nomi.addView(TextView(this).apply { text = "La Biblioteca di Alessandria"; textSize = 14f
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD); setTextColor(colore(R.color.testo)) })
+        nomi.addView(TextView(this).apply { text = p.quando; textSize = 12f; setTextColor(colore(R.color.tenue)) })
+        testa.addView(nomi)
+        c.addView(testa, sotto(10))
+        if (p.testo.isNotBlank()) c.addView(TextView(this).apply {
+            text = p.testo; textSize = 15f; setTextColor(colore(R.color.testo)); setLineSpacing(0f, 1.15f)
+        }, sotto(10))
+        p.immagine?.let { url ->
+            val img = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP
+                setBackgroundColor(colore(R.color.bordo)); contentDescription = "Immagine del post" }
+            c.addView(img, LinearLayout.LayoutParams(MATCH_PARENT, dp(220)).apply { bottomMargin = dp(10) })
+            caricaImmagine(url, img)
+        }
+        val piede = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        piede.addView(TextView(this).apply { text = if (p.mipiace.isNotBlank()) "♥ ${p.mipiace}" else ""
+            textSize = 13f; setTextColor(colore(R.color.tenue)) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        piede.addView(bottone("Apri il post") { apri(p.link) })
+        c.addView(piede)
+        return c
+    }
+
+    private fun caricaPost() {
+        if (postInCarico) return
+        postInCarico = true
+        ambito.launch {
+            runCatching { Canale.post() }
+                .onSuccess { post = it }
+                .onFailure { errorePost = "Non riesco a leggere i post del canale. Puoi vederli direttamente su YouTube." }
+            postInCarico = false
+            if (scheda == Scheda.POST) ridisegna()
+        }
+    }
+
+    private fun caricaImmagine(url: String, dove: ImageView) {
+        if (anteprime.containsKey(url)) { anteprime[url]?.let(dove::setImageBitmap); return }
+        ambito.launch {
+            val b = withContext(Dispatchers.IO) {
+                runCatching {
+                    val c = URL(url).openConnection() as HttpURLConnection
+                    c.connectTimeout = 10_000; c.readTimeout = 15_000
+                    c.inputStream.use { BitmapFactory.decodeStream(it) }.also { c.disconnect() }
+                }.getOrNull()
+            }
+            anteprime[url] = b
+            b?.let(dove::setImageBitmap)
+        }
+    }
+
+    /** L'interruttore delle notifiche sulla home. */
+    private fun cartaNotifiche(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(18), dp(14), dp(18), dp(14))
+        background = sfondo(colore(R.color.card), colore(R.color.bordo), 22)
+        addView(ImageView(this@RicercaActivity).apply { setImageResource(R.drawable.ic_campanella) },
+            LinearLayout.LayoutParams(dp(24), dp(24)).apply { rightMargin = dp(12) })
+        val testi = LinearLayout(this@RicercaActivity).apply { orientation = LinearLayout.VERTICAL }
+        testi.addView(TextView(this@RicercaActivity).apply { text = "Avvisami dei video nuovi"; textSize = 15f
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD); setTextColor(colore(R.color.testo)) })
+        testi.addView(TextView(this@RicercaActivity).apply { text = "Video, short e dirette del canale"; textSize = 12.5f
+            setTextColor(colore(R.color.tenue)) })
+        addView(testi, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        addView(Switch(this@RicercaActivity).apply {
+            isChecked = Notifiche.attive(this@RicercaActivity)
+            thumbTintList = ColorStateList.valueOf(colore(R.color.oro))
+            setOnCheckedChangeListener { _, on ->
+                Notifiche.imposta(this@RicercaActivity, on)
+                if (on && Build.VERSION.SDK_INT >= 33 &&
+                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+                    requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+            }
+        })
     }
 
     // ── mattoncini dell'interfaccia ──────────────────────────────────

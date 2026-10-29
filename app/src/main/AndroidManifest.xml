@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- (29/10) le notifiche dei video nuovi: il permesso (Android 13+) e il riavvio del controllo dopo lo spegnimento -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Da Android 11 un'app vede le altre solo se le dichiara: servono per
          sapere se Somnio c'e' (per "Aggiungi alla libreria Somnio") e per
@@ -31,5 +34,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".ControlloNovita"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
     </application>
 </manifest>

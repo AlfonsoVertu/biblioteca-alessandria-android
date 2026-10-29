@@ -24,8 +24,8 @@ android {
         applicationId = "it.bibliotecadialessandria.ricerca"
         minSdk = 24
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.3.0"
+        versionCode = 6
+        versionName = "1.4.0"
     }
 
     signingConfigs {
