@@ -16,9 +16,7 @@ s = re.sub(r'href="(La-Biblioteca-di-Alessandria-[0-9.]+\.apk)" download',
 rep("<title>La Biblioteca di Alessandria · l'app</title>", '<title>La Biblioteca di Alessandria · Somnio</title>')
 s = s.replace('https://mondo.workingwithweb.eu/biblioteca-alessandria/schermata-home.webp',
               'https://somnio.workingwithweb.eu/biblioteca-alessandria/schermata-home.webp')
-rep('''<section>
-  <div class="largo">
-    <div class="capo sale"><span class="incisa">Cosa fa</span>''', '''<section>
+SEZIONE = """<section>
   <div class="largo">
     <div class="dona sale" style="background:linear-gradient(130deg, rgba(120,140,220,.18), var(--lastra) 55%);border-color:rgba(160,175,240,.35)">
       <div class="cuore" style="animation:none;background:rgba(160,175,240,.16)"><svg viewBox="0 0 24 24" aria-hidden="true" style="fill:#c9d2ff"><path d="M12.34,2.02C6.59,1.82 2,6.42 2,12c0,5.52 4.48,10 10,10 3.71,0 6.93,-2.02 8.66,-5.02 -7.51,-0.25 -12.09,-8.43 -8.32,-14.96z"/></svg></div>
@@ -37,9 +35,11 @@ rep('''<section>
     </div>
   </div>
 </section>
+"""
+# la sezione «La storia, prima di dormire» sta in fondo, vicino alle donazioni (29/10, Alfonso)
+fine_dona = s.index('</section>', s.index('<section id="dona"')) + len('</section>')
+s = s[:fine_dona] + """
 
-<section style="padding-top:0">
-  <div class="largo">
-    <div class="capo sale"><span class="incisa">Cosa fa</span>''')
+""" + SEZIONE.replace('<section>', '<section style="padding-top:0">', 1).rstrip() + s[fine_dona:]
 open(sys.argv[2], 'w', encoding='utf-8').write(s)
 print('pagina per Somnio scritta')
