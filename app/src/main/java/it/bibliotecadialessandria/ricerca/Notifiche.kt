@@ -20,7 +20,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /**
- * Le notifiche dei video nuovi (29/10/2026): senza server e senza Firebase. Ogni 3 ore circa, quando c'e' rete,
+ * Le notifiche dei video nuovi (29/10/2026): senza server e senza Firebase. Ogni ora circa (fino alla 1.42.42 ogni 3 ore, dalla 2.42.42 ogni ora), quando c'e' rete,
  * Android sveglia [ControlloNovita] che legge i flussi di [Canale] e avvisa dei video, short e live mai visti.
  * Al primo controllo ricorda soltanto cosa c'e' gia' (niente raffica di notifiche all'installazione).
  */
@@ -28,6 +28,8 @@ object Notifiche {
     private const val CANALE_ID = "video_nuovi"
     private const val LAVORO = 7311
     private const val PREF = "notifiche"
+    /** Ogni quanto si controlla il canale: un'ora (Alfonso, 09/11/2026). Android puo' spostarlo un po' per la batteria. */
+    private const val INTERVALLO = 60 * 60 * 1000L
 
     fun attive(c: Context) = c.getSharedPreferences(PREF, Context.MODE_PRIVATE).getBoolean("attive", true)
 
@@ -40,12 +42,16 @@ object Notifiche {
     fun programma(c: Context) {
         if (!attive(c)) return
         val js = c.getSystemService(JobScheduler::class.java)
-        if (js.allPendingJobs.any { it.id == LAVORO }) return
+        // gia' in calendario con l'intervallo giusto: niente da fare. Con un intervallo vecchio (3 ore, fino alla
+        // 1.42.42) lo si toglie e si rimette, altrimenti chi aggiorna resterebbe al controllo di prima.
+        val gia = js.allPendingJobs.firstOrNull { it.id == LAVORO }
+        if (gia != null && gia.intervalMillis == INTERVALLO) return
+        if (gia != null) js.cancel(LAVORO)
         // le notifiche non devono mai far chiudere l'app: se il sistema rifiuta il lavoro, l'app va avanti senza
         runCatching {
             js.schedule(JobInfo.Builder(LAVORO, ComponentName(c, ControlloNovita::class.java))
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                .setPeriodic(3 * 60 * 60 * 1000L)
+                .setPeriodic(INTERVALLO)
                 .setPersisted(true)
                 .build())
         }
