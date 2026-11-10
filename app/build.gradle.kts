@@ -32,8 +32,8 @@ android {
         create("biblioteca") {
             dimension = "canale"
             applicationId = "it.bibliotecadialessandria.ricerca"
-            versionCode = 45
-            versionName = "4.42.42"
+            versionCode = 46
+            versionName = "5.42.42"
         }
     }
 

@@ -56,7 +56,7 @@ import java.net.URL
  * «Condividi» di ogni video offre YouTube, la libreria di Somnio o altre app.
  */
 /** Donazioni allo sviluppatore dell'app (Crediti → Sostieni l'app). */
-private const val DONAZIONI = "https://www.paypal.com/biz/profile/alfonsovertucci"
+private const val DONAZIONI = "https://paypal.me/alfonsovertucci"
 /** Il canale YouTube di questa app: nome, link e testi stanno in [Marca], diversa per ogni canale. */
 private val CANALE = Marca.CANALE
 
@@ -636,7 +636,7 @@ class RicercaActivity : Activity() {
         card.addView(titoletto("Sostieni l'app"), sopra(16))
         card.addView(nota("L'app è gratuita e senza pubblicità. Se ti è utile puoi fare una donazione a chi " +
             "l'ha sviluppata (Alfonso Vertucci): va allo sviluppo dell'app, non a ${Marca.NOME}."))
-        card.addView(bottone("Dona con PayPal", pieno = true) { apri(DONAZIONI) }, sopra(8))
+        card.addView(bottone("Dona con PayPal · paypal.me/alfonsovertucci", pieno = true) { apri(DONAZIONI) }, sopra(8))
 
         dentro.addView(card, sotto(12))
     }
