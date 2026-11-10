@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema chiaro della Biblioteca: pergamena; lo scuro (di partenza) sta in values-night -->
+    <style name="Tema" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/fondo</item>
+        <item name="android:colorBackground">@color/fondo</item>
+        <item name="android:colorAccent">@color/oro</item>
+        <item name="android:statusBarColor">@color/fondo</item>
+        <item name="android:navigationBarColor">@color/fondo</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

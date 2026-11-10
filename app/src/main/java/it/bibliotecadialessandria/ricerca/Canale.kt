@@ -18,8 +18,8 @@ import org.jsoup.parser.Parser
  */
 object Canale {
     /** L'id del canale (dal link `channel_id` della sua pagina), senza il prefisso «UC». */
-    private const val ID = "-Idufifk1hamoBzkZngr1w"
-    const val PAGINA = "https://www.youtube.com/@laBibliotecadiAlessandria"
+    private const val ID = Marca.CANALE_ID
+    const val PAGINA = Marca.CANALE
     private const val UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Mobile Safari/537.36"
     private const val UA_PC = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36"
 
@@ -32,10 +32,10 @@ object Canale {
     }
 
     /** Gli ultimi video di un tipo, nel formato delle righe della ricerca (stesse miniature e stesso «Condividi»). */
-    suspend fun ultimi(tipo: Tipo): List<Biblioteca.Video> = ultimiDi(ID, tipo)
+    suspend fun ultimi(tipo: Tipo): List<Video> = ultimiDi(ID, tipo)
 
     /** Lo stesso per un canale qualsiasi (id senza «UC»): serve ai canali seguiti ([Seguiti]). */
-    suspend fun ultimiDi(id: String, tipo: Tipo): List<Biblioteca.Video> = withContext(Dispatchers.IO) {
+    suspend fun ultimiDi(id: String, tipo: Tipo): List<Video> = withContext(Dispatchers.IO) {
         val doc = Jsoup.connect("https://www.youtube.com/feeds/videos.xml?playlist_id=${tipo.playlist}$id")
             .userAgent(UA).timeout(15_000).ignoreContentType(true).parser(Parser.xmlParser()).get()
         doc.select("entry").mapNotNull { e ->
@@ -44,7 +44,7 @@ object Canale {
             val data = e.getElementsByTag("published").firstOrNull()?.text().orEmpty().take(10)
                 .split("-").takeIf { it.size == 3 }?.let { (a, m, g) -> "$g/$m/$a" }.orEmpty()
             if (id.isNullOrBlank()) null
-            else Biblioteca.Video(id, titolo, "", data, tipo.nome, "", "", "", "")
+            else Video(id, titolo, "", data, tipo.nome, "", "", "", "")
         }
     }
 

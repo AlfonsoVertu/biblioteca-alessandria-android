@@ -61,7 +61,9 @@ object Notifiche {
         val pref = c.getSharedPreferences(PREF, Context.MODE_PRIVATE)
         val visti = pref.getStringSet("visti", emptySet())!!.toMutableSet()
         val primaVolta = visti.isEmpty()
-        val nuovi = mutableListOf<Biblioteca.Video>()
+        val nuovi = mutableListOf<Video>()
+        // (10/11) i video nuovi entrano anche nel catalogo locale, cosi' si trovano subito con «Cerca»
+        runCatching { Catalogo.integra(c) }
         for (tipo in Canale.Tipo.values()) {
             runCatching { Canale.ultimi(tipo) }.getOrNull()?.forEach { v ->
                 if (visti.add(v.youtubeId) && !primaVolta) nuovi.add(v)
@@ -78,7 +80,7 @@ object Notifiche {
             val n = NotificationCompat.Builder(c, CANALE_ID)
                 .setSmallIcon(R.drawable.ic_notifica)
                 .setContentTitle(when (v.tipo) { "Short" -> "Nuovo short"; "Live" -> "Diretta"; else -> "Nuovo video" } +
-                    " · La Biblioteca di Alessandria")
+                    " · ${Marca.NOME}")
                 .setContentText(v.titolo)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(v.titolo))
                 .setContentIntent(apri).setAutoCancel(true)
@@ -92,7 +94,7 @@ object Notifiche {
         if (Build.VERSION.SDK_INT >= 26) {
             c.getSystemService(NotificationManager::class.java).createNotificationChannel(
                 NotificationChannel(CANALE_ID, "Video nuovi", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                    description = "Un avviso quando la Biblioteca pubblica un video, uno short o una diretta"
+                    description = Marca.AVVISI_NOTA
                 })
         }
     }

@@ -23,8 +23,8 @@ import java.net.URL
  */
 object Aggiornamento {
 
-    private const val INDIRIZZO = "https://mondo.workingwithweb.eu/biblioteca-alessandria/versione.json"
-    private const val PAGINA = "https://mondo.workingwithweb.eu/biblioteca-alessandria/"
+    private const val INDIRIZZO = "https://mondo.workingwithweb.eu/${Marca.MONDO}/versione.json"
+    private const val PAGINA = "https://mondo.workingwithweb.eu/${Marca.MONDO}/"
     private const val PREF = "aggiornamento"
     private const val OGNI = 6 * 3600_000L
 

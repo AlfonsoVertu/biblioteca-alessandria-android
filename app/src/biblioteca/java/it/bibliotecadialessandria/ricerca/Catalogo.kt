@@ -41,7 +41,11 @@ import org.jsoup.nodes.Document
  * SE IL SITO CAMBIA l'HTML, si aggiorna solo questo file: il resto dell'app
  * vede `Modulo`, `Video` e due funzioni.
  */
-object Biblioteca {
+object Catalogo {
+    fun prepara(c: android.content.Context) {}
+    /** I canali con un sito non hanno un catalogo locale da completare: il sito ha gia' tutto. */
+    suspend fun integra(c: android.content.Context, forza: Boolean = false) {}
+
 
     const val SITO = "https://www.bibliotecadialessandria.it"
     private const val PAGINA = "$SITO/Search/FiltriSearch"
@@ -51,51 +55,9 @@ object Biblioteca {
     /** Il modulo si rilegge dopo mezz'ora: token e cookie invecchiano. */
     private const val DURATA_MODULO_MS = 30 * 60 * 1000L
 
-    /** Una casella di un filtro: `campo` e' il nome da rimandare («Tipi[3].Selected»). */
-    data class Opzione(val campo: String, val etichetta: String, val predefinita: Boolean)
-
-    data class Gruppo(val titolo: String, val opzioni: List<Opzione>)
-
-    /** Un campo di testo: `campo` e' il nome da rimandare, `valore` quello proposto dal sito. */
-    data class Testo(val campo: String, val etichetta: String, val valore: String)
-
-    /** Un campo del modulo, nell'ordine della pagina. */
+    /** Quello che il catalogo del sito tiene nel modulo: i campi nell'ordine della pagina e la sessione. */
     internal data class Campo(val nome: String, val tipo: String, val valore: String)
-
-    class Modulo internal constructor(
-        val gruppi: List<Gruppo>,
-        /** Descrizione, date, durata, numero, quanti risultati. */
-        val testi: List<Testo>,
-        /** Gli attributi extra: anno evento, personaggi, luoghi, tag... */
-        val attributi: List<Testo>,
-        internal val campi: List<Campo>,
-        internal val sessione: Connection,
-        internal val preso: Long,
-    )
-
-    data class Video(
-        val youtubeId: String,
-        val titolo: String,
-        val durata: String,
-        val data: String,
-        val tipo: String,
-        val categoria: String,
-        val serie: String,
-        val periodo: String,
-        val zona: String,
-    ) {
-        val link: String get() = "https://www.youtube.com/watch?v=$youtubeId"
-        val anteprima: String get() = "https://i.ytimg.com/vi/$youtubeId/mqdefault.jpg"
-
-        /** «11' · Aperistoria · Storia · Europa»: solo cio' che c'e'. */
-        fun dettagli(): String = listOf(durata, tipo.lowercase().replaceFirstChar { it.uppercase() },
-            categoria, serie, periodo, zona)
-            .map { it.trim() }
-            .filter { it.isNotEmpty() && it != "-" }
-            .joinToString(" · ")
-    }
-
-    data class Esito(val video: List<Video>, val totale: Int)
+    private class Interno(val campi: List<Campo>, val sessione: Connection)
 
     private var cache: Modulo? = null
 
@@ -174,7 +136,7 @@ object Biblioteca {
             throw IllegalStateException("La pagina della Biblioteca e' cambiata: non trovo i filtri.")
         }
         return Modulo(gruppi, testi.sortedBy { ETICHETTE_TESTI.keys.indexOf(it.campo) },
-            attributi, campi, sessione, System.currentTimeMillis())
+            attributi, Interno(campi, sessione), System.currentTimeMillis())
     }
 
     /**
@@ -192,8 +154,9 @@ object Biblioteca {
         }
 
     private fun invia(m: Modulo, accese: Set<String>, valori: Map<String, String>): Esito {
+        val dentro = m.interno as Interno
         val dati = mutableListOf<Connection.KeyVal>()
-        for (c in m.campi) {
+        for (c in dentro.campi) {
             val valore = when (c.tipo) {
                 "checkbox" -> if (c.nome in accese) "true" else continue
                 "text" -> valori[c.nome] ?: c.valore
@@ -201,7 +164,7 @@ object Biblioteca {
             }
             dati += org.jsoup.helper.HttpConnection.KeyVal.create(c.nome, valore)
         }
-        val risposta = m.sessione.newRequest().url(PAGINA)
+        val risposta = dentro.sessione.newRequest().url(PAGINA)
             .method(Connection.Method.POST)
             .header("Referer", PAGINA)
             .data(dati)
@@ -242,10 +205,4 @@ object Biblioteca {
                 zona = dopo("Zone"),
             )
         }
-
-    /** L'id di un video YouTube da un link watch, youtu.be, embed o shorts. */
-    fun idYoutube(url: String): String? {
-        val m = Regex("""(?:v=|youtu\.be/|/embed/|/shorts/)([A-Za-z0-9_-]{11})""").find(url)
-        return m?.groupValues?.get(1)
-    }
 }

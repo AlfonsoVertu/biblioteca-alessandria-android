@@ -207,7 +207,7 @@ object Seguiti {
             val chiave = "visti_${s.id}"
             val prima = p(c).getStringSet(chiave, null)
             val visti = prima?.toMutableSet() ?: mutableSetOf()
-            val nuovi = mutableListOf<Biblioteca.Video>()
+            val nuovi = mutableListOf<Video>()
             var letto = false
             for (t in Canale.Tipo.values()) {
                 val lista = runCatching { ultimi(s, t) }.getOrNull() ?: continue
@@ -221,7 +221,7 @@ object Seguiti {
         }
     }
 
-    private fun avvisa(c: Context, s: Seguito, nuovi: List<Biblioteca.Video>) {
+    private fun avvisa(c: Context, s: Seguito, nuovi: List<Video>) {
         creaCanale(c)
         val nm = NotificationManagerCompat.from(c)
         if (!nm.areNotificationsEnabled()) return

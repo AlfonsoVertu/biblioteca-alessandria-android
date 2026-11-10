@@ -3,7 +3,9 @@ package it.bibliotecadialessandria.ricerca
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
@@ -55,11 +57,8 @@ import java.net.URL
  */
 /** Donazioni allo sviluppatore dell'app (Crediti → Sostieni l'app). */
 private const val DONAZIONI = "https://www.paypal.com/biz/profile/alfonsovertucci"
-/** Il canale YouTube della Biblioteca (lo stesso link del loro sito). */
-private const val CANALE = "https://www.youtube.com/@laBibliotecadiAlessandria"
-/** Il gruppo Facebook e l'Instagram della Biblioteca (dalla pagina del loro canale). */
-private const val COMMUNITY = "https://www.facebook.com/groups/624562554783646"
-private const val INSTAGRAM = "https://www.instagram.com/bibliotecadialessandria/"
+/** Il canale YouTube di questa app: nome, link e testi stanno in [Marca], diversa per ogni canale. */
+private val CANALE = Marca.CANALE
 
 class RicercaActivity : Activity() {
 
@@ -74,14 +73,14 @@ class RicercaActivity : Activity() {
     private var playlistAperta: String? = null
     // (10/11) «I miei canali»: il canale aperto e gli ultimi video gia' letti di ciascuno
     private var canaleAperto: String? = null
-    private val videoCanale = mutableMapOf<String, List<Biblioteca.Video>>()
+    private val videoCanale = mutableMapOf<String, List<Video>>()
     private val canaleInCarico = mutableSetOf<String>()
 
     private var testo = ""
-    private var modulo: Biblioteca.Modulo? = null
+    private var modulo: Modulo? = null
     private var accese: MutableSet<String>? = null
     private val valori = mutableMapOf<String, String>()
-    private var trovati: List<Biblioteca.Video> = emptyList()
+    private var trovati: List<Video> = emptyList()
     private var totale: Int? = null
     private var cercando = false
     private var caricando = false
@@ -92,7 +91,7 @@ class RicercaActivity : Activity() {
 
     // (29/10) le novità del canale, come su YouTube: video, short e live, e la scheda dei post
     private var tipoNovita = Canale.Tipo.VIDEO
-    private val novita = mutableMapOf<Canale.Tipo, List<Biblioteca.Video>>()
+    private val novita = mutableMapOf<Canale.Tipo, List<Video>>()
     private val novitaInCarico = mutableSetOf<Canale.Tipo>()
     private var erroreNovita: String? = null
     private var post: List<Canale.Post>? = null
@@ -104,12 +103,26 @@ class RicercaActivity : Activity() {
 
     private val anteprime = HashMap<String, Bitmap?>()
 
+    /**
+     * (10/11/2026, Alfonso: «doppia modalità, dark di default») tema scuro o chiaro scelto nell'app, scuro di partenza.
+     * Si applica cambiando la modalità notte della configurazione dell'activity: le risorse in values-night
+     * (colori e tema) vincono quando e' scuro. Le app con un solo tema (Marca.DOPPIO_TEMA = false) restano come sono.
+     */
+    override fun attachBaseContext(base: Context) {
+        val conf = Configuration(base.resources.configuration)
+        val scuro = base.getSharedPreferences("aspetto", Context.MODE_PRIVATE).getBoolean("scuro", true)
+        conf.uiMode = (conf.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+            (if (scuro) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO)
+        super.attachBaseContext(base.createConfigurationContext(conf))
+    }
+
     override fun onCreate(stato: Bundle?) {
         super.onCreate(stato)
         scorrimento = ScrollView(this).apply { isFillViewport = true }
         corpo = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         scorrimento.addView(corpo, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         setContentView(scorrimento)
+        Catalogo.prepara(this)
         disegna()
         caricaFiltri()
         // le notifiche dei video nuovi: il controllo periodico e, da Android 13, il permesso
@@ -187,8 +200,8 @@ class RicercaActivity : Activity() {
                 setImageResource(R.drawable.banner_sito)
                 scaleType = ImageView.ScaleType.CENTER_CROP
                 adjustViewBounds = true
-                contentDescription = "La Biblioteca di Alessandria"
-                setOnClickListener { apri(Biblioteca.SITO + "/") }
+                contentDescription = Marca.NOME
+                setOnClickListener { apri(Marca.SITO) }
             }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             return box
         }
@@ -212,18 +225,18 @@ class RicercaActivity : Activity() {
         }
         testi.addView(ImageView(this).apply {
             setImageResource(R.mipmap.ic_launcher_foreground)
-            contentDescription = "La Biblioteca di Alessandria"
-            setOnClickListener { apri(Biblioteca.SITO + "/") }
+            contentDescription = Marca.NOME
+            setOnClickListener { apri(Marca.SITO) }
         }, LinearLayout.LayoutParams(dp(112), dp(112)))
         testi.addView(TextView(this).apply {
-            text = "La Biblioteca di Alessandria"
+            text = Marca.NOME
             textSize = 24f; gravity = Gravity.CENTER
             setTypeface(Typeface.SERIF, Typeface.BOLD)
             setTextColor(colore(R.color.testo))
             setPadding(0, dp(12), 0, 0)
         })
         testi.addView(TextView(this).apply {
-            text = "I video di storia della community, a portata di mano"
+            text = Marca.MOTTO
             textSize = 14f; gravity = Gravity.CENTER
             setTextColor(colore(R.color.tenue))
             setPadding(0, dp(4), 0, 0)
@@ -240,14 +253,11 @@ class RicercaActivity : Activity() {
         val voci = listOf(
             Voce(R.drawable.ic_novita, "Novità", "Video, short e live") { scheda = Scheda.NOVITA; disegna() },
             Voce(R.drawable.ic_post, "Post", "Dal canale") { scheda = Scheda.POST; disegna() },
-            Voce(R.drawable.ic_cerca, "Cerca", "Tutti i filtri del sito") { scheda = Scheda.CERCA; disegna() },
+            Voce(R.drawable.ic_cerca, "Cerca", Marca.CERCA_SOTTO) { scheda = Scheda.CERCA; disegna() },
             Voce(R.drawable.ic_preferiti, "Preferiti", "I video salvati") { scheda = Scheda.PREFERITI; disegna() },
             Voce(R.drawable.ic_playlist, "Playlist", "Le tue raccolte") { playlistAperta = null; scheda = Scheda.PLAYLIST; disegna() },
             Voce(R.drawable.ic_campanella, "I miei canali", "Avvisi da altri canali") { apriCanali(null) },
-            Voce(R.drawable.ic_canale, "YouTube", "Il canale") { apri(CANALE) },
-            Voce(R.drawable.ic_community, "Community", "Il gruppo Facebook") { apri(COMMUNITY) },
-            Voce(R.drawable.ic_instagram, "Instagram", "@bibliotecadialessandria") { apri(INSTAGRAM) },
-            Voce(R.drawable.ic_sito, "Il sito", "bibliotecadialessandria.it") { apri(Biblioteca.SITO + "/") },
+        ) + Marca.LINK.map { l -> Voce(l.icona, l.nome, l.sotto) { apri(l.url) } } + listOf(
             Voce(R.drawable.ic_crediti, "Crediti", "Chi ha fatto l'app") { scheda = Scheda.CREDITI; disegna() },
         )
         voci.chunked(2).forEach { coppia ->
@@ -260,8 +270,9 @@ class RicercaActivity : Activity() {
             dentro.addView(riga, sotto(12))
         }
         dentro.addView(cartaNotifiche(), sotto(12))
+        if (Marca.DOPPIO_TEMA) dentro.addView(cartaTema(), sotto(12))
         dentro.addView(cartaDona(), sopra(4))
-        dentro.addView(nota("App non ufficiale della community · i video sono della Biblioteca di Alessandria").apply {
+        dentro.addView(nota(Marca.PIEDE).apply {
             gravity = Gravity.CENTER; setPadding(0, dp(16), 0, 0)
         })
     }
@@ -320,7 +331,7 @@ class RicercaActivity : Activity() {
         addView(riga)
         addView(TextView(this@RicercaActivity).apply {
             text = "Gratuita e senza pubblicità. Se ti è utile, una donazione aiuta chi l'ha sviluppata " +
-                "(Alfonso Vertucci) a mantenerla. Va allo sviluppo dell'app, non alla Biblioteca di Alessandria."
+                "(Alfonso Vertucci) a mantenerla. Va allo sviluppo dell'app, non a ${Marca.NOME}."
             textSize = 14f; setTextColor(colore(R.color.tenue))
             setPadding(0, dp(8), 0, dp(14))
         })
@@ -391,7 +402,7 @@ class RicercaActivity : Activity() {
             val ris = card()
             errore?.let { ris.addView(nota(it), sotto(8)) }
             when {
-                cercando -> ris.addView(nota("Cerco nella Biblioteca..."))
+                cercando -> ris.addView(nota(Marca.CERCO))
                 totale == 0 -> ris.addView(nota("Nessun video con questi filtri."))
                 totale != null -> ris.addView(etichetta(
                     "$totale video trovati" +
@@ -404,7 +415,7 @@ class RicercaActivity : Activity() {
             dentro.addView(ris, sotto(12))
         }
 
-        dentro.addView(nota("Ricerca nell'indice dei video di bibliotecadialessandria.it · app non ufficiale"))
+        dentro.addView(nota(Marca.NOTA_CERCA))
     }
 
     private fun disegnaFiltri(filtri: LinearLayout) {
@@ -452,7 +463,7 @@ class RicercaActivity : Activity() {
     /** Le caselle di un gruppo di filtri. Nei gruppi lunghi: prima quelle scelte, poi le altre che
      *  corrispondono alla ricerca, 12 alla volta con «Mostra tutte». Si ridisegna solo questo riquadro,
      *  cosi' la tastiera resta aperta mentre si scrive. */
-    private fun riempiCaselle(caselle: LinearLayout, g: Biblioteca.Gruppo, acc: MutableSet<String>) {
+    private fun riempiCaselle(caselle: LinearLayout, g: Gruppo, acc: MutableSet<String>) {
         caselle.removeAllViews()
         val lungo = g.opzioni.size > 16
         val q = cercaGruppo[g.titolo].orEmpty().trim().lowercase()
@@ -584,12 +595,12 @@ class RicercaActivity : Activity() {
         card.addView(ImageView(this).apply {
             setImageResource(R.mipmap.ic_launcher)
             adjustViewBounds = true
-            contentDescription = "La Biblioteca di Alessandria"
-            setOnClickListener { apri(Biblioteca.SITO + "/") }
+            contentDescription = Marca.NOME
+            setOnClickListener { apri(Marca.SITO) }
         }, LinearLayout.LayoutParams(dp(96), dp(96)).apply { gravity = Gravity.CENTER_HORIZONTAL })
 
         card.addView(TextView(this).apply {
-            text = "La Biblioteca di Alessandria"
+            text = Marca.NOME
             textSize = 19f; gravity = Gravity.CENTER
             setTypeface(Typeface.SERIF, Typeface.BOLD)
             setTextColor(colore(R.color.testo))
@@ -602,17 +613,12 @@ class RicercaActivity : Activity() {
             setPadding(0, dp(2), 0, dp(4))
         })
 
-        card.addView(nota("Contenuti, catalogo e video sono della Biblioteca di Alessandria e dei suoi " +
-            "volontari. Questa app li rende solo più comodi da cercare; non è affiliata al canale."), sopra(8))
+        card.addView(nota(Marca.CREDITI), sopra(8))
 
-        card.addView(titoletto("La community"), sopra(16))
-        card.addView(nota("Il sito e il motore di ricerca dei video di storia del canale."))
-        card.addView(bottone("Vai al sito · bibliotecadialessandria.it", pieno = true) {
-            apri(Biblioteca.SITO + "/")
-        }, sopra(8))
-        card.addView(bottone("Il canale YouTube della Biblioteca") { apri(CANALE) }, sopra(8))
-        card.addView(bottone("La community su Facebook") { apri(COMMUNITY) }, sopra(8))
-        card.addView(bottone("Instagram · @bibliotecadialessandria") { apri(INSTAGRAM) }, sopra(8))
+        card.addView(titoletto("Il canale"), sopra(16))
+        Marca.LINK.forEachIndexed { i, l ->
+            card.addView(bottone("${l.nome} · ${l.sotto}", pieno = i == 0) { apri(l.url) }, sopra(8))
+        }
 
         card.addView(titoletto("Chi ha fatto l'app"), sopra(16))
         card.addView(nota("Sviluppata da WorkingWithWeb come app della community, gratuita. Il codice è pubblico e verificabile, con tutti i diritti riservati."))
@@ -620,7 +626,7 @@ class RicercaActivity : Activity() {
             apri("https://workingwithweb.it/webagency")
         }, sopra(8))
         card.addView(bottone("Codice sorgente su GitHub") {
-            apri("https://github.com/AlfonsoVertu/biblioteca-alessandria-android")
+            apri(Marca.CODICE)
         }, sopra(8))
         card.addView(nota("Versione ${Aggiornamento.nomeInstallato(this)} · si aggiorna da sola"), sopra(12))
         card.addView(bottone("Cerca aggiornamenti") { Aggiornamento.proponi(this, daSola = false) }, sopra(6))
@@ -629,7 +635,7 @@ class RicercaActivity : Activity() {
         // non alla Biblioteca: lo dice il testo, perche' l'app porta il loro nome
         card.addView(titoletto("Sostieni l'app"), sopra(16))
         card.addView(nota("L'app è gratuita e senza pubblicità. Se ti è utile puoi fare una donazione a chi " +
-            "l'ha sviluppata (Alfonso Vertucci): va allo sviluppo dell'app, non alla Biblioteca di Alessandria."))
+            "l'ha sviluppata (Alfonso Vertucci): va allo sviluppo dell'app, non a ${Marca.NOME}."))
         card.addView(bottone("Dona con PayPal", pieno = true) { apri(DONAZIONI) }, sopra(8))
 
         dentro.addView(card, sotto(12))
@@ -637,7 +643,7 @@ class RicercaActivity : Activity() {
 
     // ── riga di un video ─────────────────────────────────────────────
 
-    private fun rigaVideo(v: Biblioteca.Video, inPlaylist: String? = null): View {
+    private fun rigaVideo(v: Video, inPlaylist: String? = null): View {
         val riga = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val anteprima = ImageView(this).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
@@ -685,7 +691,7 @@ class RicercaActivity : Activity() {
 
     // ── dialoghi playlist ────────────────────────────────────────────
 
-    private fun chiediAggiungiAPlaylist(v: Biblioteca.Video) {
+    private fun chiediAggiungiAPlaylist(v: Video) {
         val nomi = Libreria.nomiPlaylist(this)
         val voci = (nomi + "+ Nuova playlist...").toTypedArray()
         AlertDialog.Builder(this)
@@ -702,7 +708,7 @@ class RicercaActivity : Activity() {
             .show()
     }
 
-    private fun chiediNuovaPlaylist(v: Biblioteca.Video?) {
+    private fun chiediNuovaPlaylist(v: Video?) {
         val campo = EditText(this).apply {
             hint = "Nome della playlist"; isSingleLine = true
             inputType = InputType.TYPE_CLASS_TEXT
@@ -741,7 +747,7 @@ class RicercaActivity : Activity() {
         packageManager.getPackageInfo(SOMNIO, 0); true
     }.getOrDefault(false)
 
-    private fun condividi(v: Biblioteca.Video) {
+    private fun condividi(v: Video) {
         val somnio = somnioInstallata()
         val voci = mutableListOf("Guarda su YouTube")
         voci += if (somnio) "Aggiungi alla libreria Somnio" else "Aggiungi alla libreria Somnio (non installata)"
@@ -759,13 +765,13 @@ class RicercaActivity : Activity() {
             .show()
     }
 
-    private fun testoCondiviso(v: Biblioteca.Video) = Intent(Intent.ACTION_SEND).apply {
+    private fun testoCondiviso(v: Video) = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_SUBJECT, v.titolo)
         putExtra(Intent.EXTRA_TEXT, v.link)
     }
 
-    private fun mandaASomnio(v: Biblioteca.Video) {
+    private fun mandaASomnio(v: Video) {
         runCatching { startActivity(testoCondiviso(v).setPackage(SOMNIO)) }
             .onFailure { avvisa("Somnio non ha accettato il link.") }
     }
@@ -784,14 +790,14 @@ class RicercaActivity : Activity() {
         disegna()
         ambito.launch {
             runCatching {
-                val m = modulo ?: Biblioteca.modulo().also { modulo = it }
+                val m = modulo ?: Catalogo.modulo().also { modulo = it }
                 val scelte = accese ?: predefinite(m).also { accese = it }
-                Biblioteca.cerca(scelte, valori + ("Descrizione" to testo.trim()))
+                Catalogo.cerca(scelte, valori + ("Descrizione" to testo.trim()))
             }.onSuccess {
                 trovati = it.video; totale = it.totale
             }.onFailure {
                 trovati = emptyList(); totale = null
-                errore = "La Biblioteca non risponde. Controlla la connessione e riprova."
+                errore = Marca.NON_RISPONDE
             }
             cercando = false
             disegna()
@@ -804,17 +810,17 @@ class RicercaActivity : Activity() {
         caricando = true
         disegna()
         ambito.launch {
-            runCatching { Biblioteca.modulo(forza) }
+            runCatching { Catalogo.modulo(forza) }
                 .onSuccess { m -> modulo = m; if (accese == null) accese = predefinite(m) }
             caricando = false
             disegna()
         }
     }
 
-    private fun predefinite(m: Biblioteca.Modulo) =
+    private fun predefinite(m: Modulo) =
         m.gruppi.flatMap { it.opzioni }.filter { it.predefinita }.map { it.campo }.toMutableSet()
 
-    private fun caricaAnteprima(v: Biblioteca.Video, dove: ImageView) {
+    private fun caricaAnteprima(v: Video, dove: ImageView) {
         if (anteprime.containsKey(v.youtubeId)) { anteprime[v.youtubeId]?.let(dove::setImageBitmap); return }
         ambito.launch {
             val b = withContext(Dispatchers.IO) {
@@ -899,7 +905,7 @@ class RicercaActivity : Activity() {
         testa.addView(ImageView(this).apply { setImageResource(R.mipmap.ic_launcher_foreground) },
             LinearLayout.LayoutParams(dp(36), dp(36)).apply { rightMargin = dp(8) })
         val nomi = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        nomi.addView(TextView(this).apply { text = "La Biblioteca di Alessandria"; textSize = 14f
+        nomi.addView(TextView(this).apply { text = Marca.NOME; textSize = 14f
             setTypeface(Typeface.DEFAULT, Typeface.BOLD); setTextColor(colore(R.color.testo)) })
         nomi.addView(TextView(this).apply { text = p.quando; textSize = 12f; setTextColor(colore(R.color.tenue)) })
         testa.addView(nomi)
@@ -948,6 +954,25 @@ class RicercaActivity : Activity() {
         }
     }
 
+    /** L'interruttore del tema scuro sulla home: cambia e ridisegna l'app. */
+    private fun cartaTema(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(18), dp(14), dp(18), dp(14))
+        background = sfondo(colore(R.color.card), colore(R.color.bordo), 22)
+        val testi = LinearLayout(this@RicercaActivity).apply { orientation = LinearLayout.VERTICAL }
+        testi.addView(TextView(this@RicercaActivity).apply { text = "Tema scuro"; textSize = 15f
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD); setTextColor(colore(R.color.testo)) })
+        testi.addView(TextView(this@RicercaActivity).apply { text = "Spento: fondo chiaro"; textSize = 12.5f
+            setTextColor(colore(R.color.tenue)) })
+        addView(testi, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        val pref = getSharedPreferences("aspetto", Context.MODE_PRIVATE)
+        addView(Switch(this@RicercaActivity).apply {
+            isChecked = pref.getBoolean("scuro", true)
+            thumbTintList = ColorStateList.valueOf(colore(R.color.oro))
+            setOnCheckedChangeListener { _, on -> pref.edit().putBoolean("scuro", on).apply(); recreate() }
+        })
+    }
+
     /** L'interruttore delle notifiche sulla home. */
     private fun cartaNotifiche(): View = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
@@ -989,7 +1014,7 @@ class RicercaActivity : Activity() {
         val lista = Seguiti.tutti(this)
         if (lista.isEmpty()) {
             card.addView(nota("Nessun canale ancora. Aggiungine uno con il link del canale o di un suo video, " +
-                "oppure da YouTube: «Condividi» su un video e scegli La Biblioteca di Alessandria."), sotto(10))
+                "oppure da YouTube: «Condividi» su un video e scegli ${Marca.NOME}."), sotto(10))
         } else lista.forEach { s ->
             val riga = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
@@ -1124,7 +1149,7 @@ class RicercaActivity : Activity() {
         ambito.launch {
             val info = runCatching { Seguiti.infoVideo(idVideo) }.getOrNull()
             val titolo = info?.titolo?.ifBlank { null } ?: "Video YouTube"
-            val v = Biblioteca.Video(idVideo, titolo, "", "", "Video", "", "", "", "")
+            val v = Video(idVideo, titolo, "", "", "Video", "", "", "", "")
             val canale = info?.canale?.ifBlank { null }
             val voci = mutableListOf(if (Libreria.ePreferito(this@RicercaActivity, idVideo)) "★ Già nei preferiti" else "☆ Aggiungi ai preferiti", "+ Aggiungi a una playlist")
             if (canale != null) voci += "Segui il canale «$canale» e ricevi gli avvisi"
@@ -1191,7 +1216,7 @@ class RicercaActivity : Activity() {
         setPadding(dp(14), dp(12), dp(14), dp(12))
     }
 
-    private fun campoFiltro(t: Biblioteca.Testo): View {
+    private fun campoFiltro(t: Testo): View {
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         box.addView(nota(t.etichetta))
         val e = campo(t.etichetta, valori[t.campo] ?: t.valore)

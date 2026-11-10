@@ -21,11 +21,20 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "it.bibliotecadialessandria.ricerca"
         minSdk = 24
         targetSdk = 35
-        versionCode = 44
-        versionName = "3.42.42"
+    }
+
+    // (10/11/2026) un'app per canale: stesso codice (src/main), nome, link, colori, icona e catalogo
+    // nella cartella del canale (src/<canale>). Firma comune: le app della famiglia si riconoscono.
+    flavorDimensions += "canale"
+    productFlavors {
+        create("biblioteca") {
+            dimension = "canale"
+            applicationId = "it.bibliotecadialessandria.ricerca"
+            versionCode = 45
+            versionName = "4.42.42"
+        }
     }
 
     signingConfigs {
