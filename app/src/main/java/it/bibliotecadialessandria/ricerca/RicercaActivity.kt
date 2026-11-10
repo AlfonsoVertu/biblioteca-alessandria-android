@@ -376,7 +376,7 @@ class RicercaActivity : Activity() {
 
     private fun disegnaCerca(dentro: LinearLayout) {
         val cerca = card()
-        val campo = campo("Cerca un video: Napoleone, Roma, peste...", testo)
+        val campo = campo(Marca.SUGGERIMENTO, testo)
         campo.addTextChangedListener(ricorda { testo = it })
         campo.imeOptions = EditorInfo.IME_ACTION_SEARCH
         campo.setOnEditorActionListener { _, azione, ev ->

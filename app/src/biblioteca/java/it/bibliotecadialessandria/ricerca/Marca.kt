@@ -20,6 +20,8 @@ object Marca {
     const val MONDO = "biblioteca-alessandria"
     const val CERCA_SOTTO = "Tutti i filtri del sito"
     const val CERCO = "Cerco nella Biblioteca..."
+    /** Il suggerimento nella casella di ricerca. */
+    const val SUGGERIMENTO = "Cerca un video: Napoleone, Roma, peste..."
     const val NON_RISPONDE = "La Biblioteca non risponde. Controlla la connessione e riprova."
     const val NOTA_CERCA = "Ricerca nell'indice dei video di bibliotecadialessandria.it · app non ufficiale"
     const val PIEDE = "App non ufficiale della community · i video sono della Biblioteca di Alessandria"
