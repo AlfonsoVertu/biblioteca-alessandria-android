@@ -615,7 +615,7 @@ class RicercaActivity : Activity() {
         card.addView(bottone("Instagram · @bibliotecadialessandria") { apri(INSTAGRAM) }, sopra(8))
 
         card.addView(titoletto("Chi ha fatto l'app"), sopra(16))
-        card.addView(nota("Sviluppata da WorkingWithWeb come app della community, gratuita e a codice aperto."))
+        card.addView(nota("Sviluppata da WorkingWithWeb come app della community, gratuita. Il codice è pubblico e verificabile, con tutti i diritti riservati."))
         card.addView(bottone("WorkingWithWeb · workingwithweb.it/webagency", pieno = true) {
             apri("https://workingwithweb.it/webagency")
         }, sopra(8))

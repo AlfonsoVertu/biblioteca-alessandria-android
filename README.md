@@ -37,3 +37,7 @@ Senza firma l'APK di rilascio esce non firmato; per provare basta
 `./gradlew assembleDebug`.
 
 Il banner e il nome appartengono alla Biblioteca di Alessandria.
+
+## Licenza
+
+Codice pubblico per trasparenza, **tutti i diritti riservati** (non è open source): vedi [LICENSE](LICENSE). La Biblioteca di Alessandria e i canali per cui Working With Web ha realizzato un'app sono autorizzati a usarlo per la propria app, senza ridistribuirlo né usarlo a scopo di lucro.
