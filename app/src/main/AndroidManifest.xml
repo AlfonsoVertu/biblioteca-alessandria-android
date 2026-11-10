@@ -30,12 +30,23 @@
             android:name=".RicercaActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- (10/11) «Condividi» da YouTube: il video nei preferiti, oppure segui il suo canale -->
+            <intent-filter android:label="Biblioteca: preferiti o segui il canale">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
+        <service
+            android:name=".ControlloSeguiti"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
         <service
             android:name=".ControlloNovita"
             android:permission="android.permission.BIND_JOB_SERVICE"

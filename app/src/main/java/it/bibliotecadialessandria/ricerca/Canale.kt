@@ -32,8 +32,11 @@ object Canale {
     }
 
     /** Gli ultimi video di un tipo, nel formato delle righe della ricerca (stesse miniature e stesso «Condividi»). */
-    suspend fun ultimi(tipo: Tipo): List<Biblioteca.Video> = withContext(Dispatchers.IO) {
-        val doc = Jsoup.connect("https://www.youtube.com/feeds/videos.xml?playlist_id=${tipo.playlist}$ID")
+    suspend fun ultimi(tipo: Tipo): List<Biblioteca.Video> = ultimiDi(ID, tipo)
+
+    /** Lo stesso per un canale qualsiasi (id senza «UC»): serve ai canali seguiti ([Seguiti]). */
+    suspend fun ultimiDi(id: String, tipo: Tipo): List<Biblioteca.Video> = withContext(Dispatchers.IO) {
+        val doc = Jsoup.connect("https://www.youtube.com/feeds/videos.xml?playlist_id=${tipo.playlist}$id")
             .userAgent(UA).timeout(15_000).ignoreContentType(true).parser(Parser.xmlParser()).get()
         doc.select("entry").mapNotNull { e ->
             val id = e.selectFirst("yt|videoId")?.text() ?: e.getElementsByTag("yt:videoId").firstOrNull()?.text()

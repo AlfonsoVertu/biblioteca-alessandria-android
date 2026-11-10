@@ -63,7 +63,7 @@ private const val INSTAGRAM = "https://www.instagram.com/bibliotecadialessandria
 
 class RicercaActivity : Activity() {
 
-    private enum class Scheda { HOME, CERCA, NOVITA, POST, PREFERITI, PLAYLIST, CREDITI }
+    private enum class Scheda { HOME, CERCA, NOVITA, POST, PREFERITI, PLAYLIST, CANALI, CREDITI }
 
     private val ambito = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -72,6 +72,10 @@ class RicercaActivity : Activity() {
 
     private var scheda = Scheda.HOME
     private var playlistAperta: String? = null
+    // (10/11) «I miei canali»: il canale aperto e gli ultimi video gia' letti di ciascuno
+    private var canaleAperto: String? = null
+    private val videoCanale = mutableMapOf<String, List<Biblioteca.Video>>()
+    private val canaleInCarico = mutableSetOf<String>()
 
     private var testo = ""
     private var modulo: Biblioteca.Modulo? = null
@@ -116,12 +120,21 @@ class RicercaActivity : Activity() {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
+        Seguiti.programma(this)
+        riceviCondiviso(intent)
+    }
+
+    override fun onNewIntent(i: Intent) {
+        super.onNewIntent(i)
+        setIntent(i)
+        riceviCondiviso(i)
     }
 
     /** Dalle sezioni il tasto indietro torna alla home; dalla home chiude l'app. */
     @Deprecated("Activity semplice senza OnBackPressedDispatcher")
     override fun onBackPressed() {
-        if (scheda != Scheda.HOME) { scheda = Scheda.HOME; playlistAperta = null; disegna(); scorrimento.scrollTo(0, 0) }
+        if (scheda == Scheda.CANALI && canaleAperto != null) { canaleAperto = null; disegna(); scorrimento.scrollTo(0, 0) }
+        else if (scheda != Scheda.HOME) { scheda = Scheda.HOME; playlistAperta = null; disegna(); scorrimento.scrollTo(0, 0) }
         else @Suppress("DEPRECATION") super.onBackPressed()
     }
 
@@ -154,6 +167,7 @@ class RicercaActivity : Activity() {
             Scheda.POST -> disegnaPost(dentro)
             Scheda.PREFERITI -> disegnaPreferiti(dentro)
             Scheda.PLAYLIST -> disegnaPlaylist(dentro)
+            Scheda.CANALI -> disegnaCanali(dentro)
             Scheda.CREDITI -> disegnaCrediti(dentro)
         }
     }
@@ -229,6 +243,7 @@ class RicercaActivity : Activity() {
             Voce(R.drawable.ic_cerca, "Cerca", "Tutti i filtri del sito") { scheda = Scheda.CERCA; disegna() },
             Voce(R.drawable.ic_preferiti, "Preferiti", "I video salvati") { scheda = Scheda.PREFERITI; disegna() },
             Voce(R.drawable.ic_playlist, "Playlist", "Le tue raccolte") { playlistAperta = null; scheda = Scheda.PLAYLIST; disegna() },
+            Voce(R.drawable.ic_campanella, "I miei canali", "Avvisi da altri canali") { apriCanali(null) },
             Voce(R.drawable.ic_canale, "YouTube", "Il canale") { apri(CANALE) },
             Voce(R.drawable.ic_community, "Community", "Il gruppo Facebook") { apri(COMMUNITY) },
             Voce(R.drawable.ic_instagram, "Instagram", "@bibliotecadialessandria") { apri(INSTAGRAM) },
@@ -956,6 +971,182 @@ class RicercaActivity : Activity() {
                     requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
             }
         })
+    }
+
+    // ── i miei canali (10/11/2026) ───────────────────────────────────
+
+    private fun apriCanali(id: String?) {
+        canaleAperto = id; scheda = Scheda.CANALI; disegna(); scorrimento.post { scorrimento.scrollTo(0, 0) }
+    }
+
+    private fun disegnaCanali(dentro: LinearLayout) {
+        canaleAperto?.let { id -> Seguiti.di(this, id)?.let { disegnaCanale(dentro, it); return } }
+        canaleAperto = null
+        val card = card()
+        card.addView(etichetta("I miei canali"), sotto(8))
+        card.addView(nota("Altri canali YouTube di cui vuoi sapere quando esce qualcosa. Per ognuno scegli ogni " +
+            "quanto controllare e quali avvisi ricevere. Restano solo su questo telefono."), sotto(12))
+        val lista = Seguiti.tutti(this)
+        if (lista.isEmpty()) {
+            card.addView(nota("Nessun canale ancora. Aggiungine uno con il link del canale o di un suo video, " +
+                "oppure da YouTube: «Condividi» su un video e scegli La Biblioteca di Alessandria."), sotto(10))
+        } else lista.forEach { s ->
+            val riga = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                background = sfondo(colore(R.color.fondo), colore(R.color.bordo), 10)
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+                setOnClickListener { apriCanali(s.id) }
+            }
+            val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            box.addView(titoletto(s.nome)); box.addView(nota(s.descrizione()))
+            riga.addView(box, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            riga.addView(nota("Apri ›"))
+            card.addView(riga, sotto(8))
+        }
+        card.addView(bottone("+ Aggiungi canale", pieno = true) { chiediNuovoCanale() }, sopra(6))
+        dentro.addView(card, sotto(12))
+    }
+
+    private fun disegnaCanale(dentro: LinearLayout, s: Seguiti.Seguito) {
+        val card = card()
+        card.addView(LinearLayout(this).apply {
+            setOnClickListener { canaleAperto = null; disegna() }
+            addView(nota("‹ Tutti i canali"))
+        }, sotto(8))
+        card.addView(TextView(this).apply {
+            text = s.nome; textSize = 20f; setTypeface(Typeface.SERIF, Typeface.BOLD); setTextColor(colore(R.color.testo))
+        }, sotto(4))
+        card.addView(nota(s.descrizione()), sotto(12))
+
+        // avvisi accesi o in pausa
+        val acceso = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        acceso.addView(titoletto("Avvisi da questo canale"), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        acceso.addView(Switch(this).apply {
+            isChecked = s.attivo; thumbTintList = ColorStateList.valueOf(colore(R.color.oro))
+            setOnCheckedChangeListener { _, on -> Seguiti.metti(this@RicercaActivity, s.copy(attivo = on)); chiediPermessoNotifiche(); ridisegna() }
+        })
+        card.addView(acceso, sotto(12))
+
+        // ogni quanto controllare
+        card.addView(etichetta("Ogni quanto controllare"), sotto(8))
+        Seguiti.INTERVALLI.chunked(4).forEach { gruppo ->
+            val fila = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            gruppo.forEach { (min, nome) ->
+                val scelto = min == s.minuti
+                fila.addView(TextView(this).apply {
+                    text = nome; textSize = 14f; gravity = Gravity.CENTER; setPadding(dp(6), dp(10), dp(6), dp(10))
+                    setTextColor(colore(if (scelto) R.color.su_oro else R.color.testo))
+                    background = sfondo(colore(if (scelto) R.color.oro else R.color.fondo), colore(if (scelto) R.color.oro else R.color.bordo), 18)
+                    setOnClickListener { if (!scelto) { Seguiti.metti(this@RicercaActivity, s.copy(minuti = min)); ridisegna() } }
+                }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { leftMargin = dp(3); rightMargin = dp(3) })
+            }
+            repeat(4 - gruppo.size) { fila.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f)) }
+            card.addView(fila, sotto(6))
+        }
+        card.addView(nota("Android può anticipare o ritardare un po' il controllo per risparmiare batteria."), sotto(12))
+
+        // quali avvisi
+        card.addView(etichetta("Avvisami di"), sotto(4))
+        card.addView(casella("Video", s.video) { Seguiti.metti(this, s.copy(video = it)); ridisegna() })
+        card.addView(casella("Short", s.short) { Seguiti.metti(this, s.copy(short = it)); ridisegna() })
+        card.addView(casella("Dirette", s.live) { Seguiti.metti(this, s.copy(live = it)); ridisegna() }, sotto(10))
+
+        card.addView(bottone("Apri il canale su YouTube") { apri(s.link) }, sotto(8))
+        card.addView(bottone("Smetti di seguire") {
+            AlertDialog.Builder(this).setTitle("Smettere di seguire «${s.nome}»?")
+                .setMessage("Non riceverai più avvisi da questo canale.")
+                .setPositiveButton("Smetti") { _, _ -> Seguiti.togli(this, s.id); canaleAperto = null; disegna() }
+                .setNegativeButton("Annulla", null).show()
+        })
+        dentro.addView(card, sotto(12))
+
+        // gli ultimi video del canale, con stella e playlist come gli altri
+        val ris = card()
+        val lista = videoCanale[s.id]
+        when {
+            lista == null -> { ris.addView(nota("Carico gli ultimi video del canale...")); caricaVideoCanale(s) }
+            lista.isEmpty() -> ris.addView(nota("Non riesco a leggere i video di questo canale adesso."))
+            else -> { ris.addView(etichetta("Gli ultimi video"), sotto(8)); lista.forEach { ris.addView(rigaVideo(it), sotto(14)) } }
+        }
+        dentro.addView(ris, sotto(12))
+    }
+
+    private fun caricaVideoCanale(s: Seguiti.Seguito) {
+        if (!canaleInCarico.add(s.id)) return
+        ambito.launch {
+            val tutti = Canale.Tipo.values().flatMap { t -> runCatching { Seguiti.ultimi(s, t) }.getOrDefault(emptyList()) }
+            videoCanale[s.id] = tutti.distinctBy { it.youtubeId }.sortedByDescending { it.data.split("/").reversed().joinToString("") }.take(15)
+            canaleInCarico.remove(s.id)
+            if (scheda == Scheda.CANALI && canaleAperto == s.id) ridisegna()
+        }
+    }
+
+    private fun chiediNuovoCanale(iniziale: String = "") {
+        val campo = EditText(this).apply {
+            hint = "Link del canale o di un suo video"; isSingleLine = true; setText(iniziale)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Aggiungi un canale")
+            .setMessage("Incolla il link di un canale YouTube (anche @nome) o di un qualsiasi suo video.")
+            .setView(campo)
+            .setPositiveButton("Aggiungi") { _, _ -> segui(campo.text?.toString().orEmpty()) }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    /** Dal link al canale seguito: lo cerca, ricorda i video che ci sono gia' e apre le sue impostazioni. */
+    private fun segui(link: String) {
+        if (link.isBlank()) { avvisa("Serve un link."); return }
+        avvisa("Cerco il canale...")
+        ambito.launch {
+            val s = runCatching { Seguiti.risolvi(Seguiti.linkIn(link) ?: link) }.getOrNull()
+            if (s == null) { avvisa("Non trovo un canale YouTube in questo link."); return@launch }
+            val gia = Seguiti.di(this@RicercaActivity, s.id)
+            if (gia == null) {
+                withContext(Dispatchers.IO) { Seguiti.ricordaEsistenti(this@RicercaActivity, s) }
+                Seguiti.metti(this@RicercaActivity, s.copy(ultimo = System.currentTimeMillis()))
+                avvisa("Ora segui «${s.nome}».")
+            } else avvisa("Segui già «${gia.nome}».")
+            chiediPermessoNotifiche()
+            apriCanali(s.id)
+        }
+    }
+
+    /** Un video o un canale condiviso da YouTube: preferiti, oppure segui il canale. */
+    private fun riceviCondiviso(i: Intent?) {
+        if (i?.action != Intent.ACTION_SEND) return
+        val link = Seguiti.linkIn(i.getStringExtra(Intent.EXTRA_TEXT)) ?: run { avvisa("Nel testo condiviso non c'è un link YouTube."); return }
+        i.action = null   // girando lo schermo non deve ripartire
+        val idVideo = Seguiti.idVideo(link)
+        if (idVideo == null) { segui(link); return }
+        ambito.launch {
+            val info = runCatching { Seguiti.infoVideo(idVideo) }.getOrNull()
+            val titolo = info?.titolo?.ifBlank { null } ?: "Video YouTube"
+            val v = Biblioteca.Video(idVideo, titolo, "", "", "Video", "", "", "", "")
+            val canale = info?.canale?.ifBlank { null }
+            val voci = mutableListOf(if (Libreria.ePreferito(this@RicercaActivity, idVideo)) "★ Già nei preferiti" else "☆ Aggiungi ai preferiti", "+ Aggiungi a una playlist")
+            if (canale != null) voci += "Segui il canale «$canale» e ricevi gli avvisi"
+            AlertDialog.Builder(this@RicercaActivity)
+                .setTitle(titolo)
+                .setItems(voci.toTypedArray()) { _, n ->
+                    when (n) {
+                        0 -> { if (!Libreria.ePreferito(this@RicercaActivity, idVideo)) Libreria.cambiaPreferito(this@RicercaActivity, v)
+                               avvisa("Nei preferiti."); scheda = Scheda.PREFERITI; disegna() }
+                        1 -> chiediAggiungiAPlaylist(v)
+                        else -> segui(info!!.linkCanale.ifBlank { link })
+                    }
+                }
+                .setNegativeButton("Annulla", null)
+                .show()
+        }
+    }
+
+    private fun chiediPermessoNotifiche() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
     }
 
     // ── mattoncini dell'interfaccia ──────────────────────────────────
