@@ -4,10 +4,14 @@ package it.bibliotecadialessandria.ricerca
 object Marca {
     const val NOME = "La Biblioteca di Alessandria"
     /** Tema scuro e chiaro a scelta (scuro di partenza); false = un solo tema, quello dei colori in values. */
+    /** Piu' canali in un'app (app per argomento): niente scheda Post, Novita' dal catalogo. */
+    const val MULTI = false
     const val DOPPIO_TEMA = true
     const val MOTTO = "I video di storia della community, a portata di mano"
     /** Il canale YouTube e il suo id senza «UC». */
     const val CANALE = "https://www.youtube.com/@laBibliotecadiAlessandria"
+    /** I canali «di casa» dell'app (id «UC...» e nome): per un'app di un canale e' uno solo. */
+    val CASA get() = listOf("UC$CANALE_ID" to NOME)
     const val CANALE_ID = "-Idufifk1hamoBzkZngr1w"
     const val SITO = "https://www.bibliotecadialessandria.it/"
     /** Il codice pubblico dell'app (licenza: tutti i diritti riservati). */

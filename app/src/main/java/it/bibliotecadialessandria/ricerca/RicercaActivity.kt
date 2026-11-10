@@ -252,7 +252,9 @@ class RicercaActivity : Activity() {
         class Voce(val icona: Int, val nome: String, val sotto: String, val vai: () -> Unit)
         val voci = listOf(
             Voce(R.drawable.ic_novita, "Novità", "Video, short e live") { scheda = Scheda.NOVITA; disegna() },
+        ) + (if (Marca.MULTI) emptyList() else listOf(
             Voce(R.drawable.ic_post, "Post", "Dal canale") { scheda = Scheda.POST; disegna() },
+        )) + listOf(
             Voce(R.drawable.ic_cerca, "Cerca", Marca.CERCA_SOTTO) { scheda = Scheda.CERCA; disegna() },
             Voce(R.drawable.ic_preferiti, "Preferiti", "I video salvati") { scheda = Scheda.PREFERITI; disegna() },
             Voce(R.drawable.ic_playlist, "Playlist", "Le tue raccolte") { playlistAperta = null; scheda = Scheda.PLAYLIST; disegna() },
@@ -364,7 +366,8 @@ class RicercaActivity : Activity() {
         voce("Home", Scheda.HOME)
         voce("Cerca", Scheda.CERCA)
         voce("Novità", Scheda.NOVITA)
-        voce("Post", Scheda.POST)
+        // (10/11) un'app con piu' canali non ha «Post» (sono di un canale solo): al suo posto i preferiti
+        if (Marca.MULTI) voce("Preferiti", Scheda.PREFERITI) else voce("Post", Scheda.POST)
         voce("Crediti", Scheda.CREDITI)
         return riga
     }
@@ -868,14 +871,14 @@ class RicercaActivity : Activity() {
             }
         }
         dentro.addView(ris, sotto(12))
-        dentro.addView(bottone("Apri il canale su YouTube") { apri(CANALE) })
+        if (!Marca.MULTI) dentro.addView(bottone("Apri il canale su YouTube") { apri(CANALE) })
     }
 
     private fun caricaNovita(t: Canale.Tipo, forza: Boolean = false) {
         if (t in novitaInCarico || (!forza && novita.containsKey(t))) return
         novitaInCarico.add(t)
         ambito.launch {
-            runCatching { Canale.ultimi(t) }
+            runCatching { if (Marca.MULTI) Catalogo.recenti(t.nome) else Canale.ultimi(t) }
                 .onSuccess { novita[t] = it }
                 .onFailure { erroreNovita = "Il canale non risponde. Controlla la connessione e riprova." }
             novitaInCarico.remove(t)
@@ -1023,7 +1026,8 @@ class RicercaActivity : Activity() {
                 setOnClickListener { apriCanali(s.id) }
             }
             val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-            box.addView(titoletto(s.nome)); box.addView(nota(s.descrizione()))
+            box.addView(titoletto(s.nome))
+            box.addView(nota((if (Seguiti.diCasa(this, s)) "Di casa · " else "") + s.descrizione()))
             riga.addView(box, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
             riga.addView(nota("Apri ›"))
             card.addView(riga, sotto(8))
@@ -1077,6 +1081,8 @@ class RicercaActivity : Activity() {
         card.addView(casella("Dirette", s.live) { Seguiti.metti(this, s.copy(live = it)); ridisegna() }, sotto(10))
 
         card.addView(bottone("Apri il canale su YouTube") { apri(s.link) }, sotto(8))
+        if (Seguiti.diCasa(this, s)) card.addView(nota(if (s.casa == packageName) "È il canale di questa app: puoi mettere in pausa gli avvisi, non toglierlo."
+            else "È il canale di un'altra app della famiglia: si toglie disinstallando quell'app.")) else
         card.addView(bottone("Smetti di seguire") {
             AlertDialog.Builder(this).setTitle("Smettere di seguire «${s.nome}»?")
                 .setMessage("Non riceverai più avvisi da questo canale.")

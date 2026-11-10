@@ -8,12 +8,19 @@
     <!-- da Android 14 un lavoro che chiede la rete deve poterla controllare (29/10: senza, crash all'avvio) -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- (10/11/2026) la famiglia delle app dei canali: si scambiano «I miei canali» solo se firmate con la stessa chiave -->
+    <permission android:name="eu.workingwithweb.canali.permesso.FAMIGLIA" android:protectionLevel="signature" />
+    <uses-permission android:name="eu.workingwithweb.canali.permesso.FAMIGLIA" />
+
     <!-- Da Android 11 un'app vede le altre solo se le dichiara: servono per
          sapere se Somnio c'e' (per "Aggiungi alla libreria Somnio") e per
          aprire i link di YouTube. -->
     <queries>
         <package android:name="eu.workingwithweb.somnio" />
         <package android:name="com.google.android.youtube" />
+        <intent>
+            <action android:name="eu.workingwithweb.canali.FAMIGLIA" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
@@ -43,6 +50,19 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+        <provider
+            android:name=".FamigliaProvider"
+            android:authorities="${applicationId}.famiglia"
+            android:exported="true"
+            android:permission="eu.workingwithweb.canali.permesso.FAMIGLIA" />
+        <receiver
+            android:name=".FamigliaRicevitore"
+            android:exported="true"
+            android:permission="eu.workingwithweb.canali.permesso.FAMIGLIA">
+            <intent-filter>
+                <action android:name="eu.workingwithweb.canali.FAMIGLIA" />
+            </intent-filter>
+        </receiver>
         <service
             android:name=".ControlloSeguiti"
             android:permission="android.permission.BIND_JOB_SERVICE"

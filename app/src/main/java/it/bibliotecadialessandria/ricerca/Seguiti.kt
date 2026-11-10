@@ -54,44 +54,126 @@ object Seguiti {
         val live: Boolean = true,
         val attivo: Boolean = true,
         val ultimo: Long = 0L,     // quando e' stato controllato l'ultima volta
+        val casa: String = "",     // il pacchetto dell'app di cui e' il canale «di casa» ("" = seguito a mano)
+        val mod: Long = 0L,        // quando l'utente l'ha cambiato l'ultima volta: fra le app sorelle vince il piu' recente
+        val tolto: Boolean = false, // tolto dall'utente: resta segnato cosi', perche' la rimozione arrivi alle sorelle
+        val parole: List<String> = emptyList(), // app per argomento: avvisa solo dei titoli con una di queste parole
     ) {
         val link: String get() = "https://www.youtube.com/channel/$id"
         fun tipi() = Canale.Tipo.values().filter { when (it) { Canale.Tipo.VIDEO -> video; Canale.Tipo.SHORT -> short; Canale.Tipo.LIVE -> live } }
         fun descrizione() = if (!attivo) "Avvisi in pausa" else
-            "Ogni ${nomeIntervallo(minuti)} · " + (tipi().joinToString(", ") { it.nome.lowercase() }.ifEmpty { "nessun avviso scelto" })
+            "Ogni ${nomeIntervallo(minuti)} · " + (tipi().joinToString(", ") { it.nome.lowercase() }.ifEmpty { "nessun avviso scelto" }) +
+                (if (parole.isNotEmpty()) " · solo sull'argomento dell'app" else "")
     }
 
     private fun p(c: Context) = c.getSharedPreferences(PREF, Context.MODE_PRIVATE)
 
-    fun tutti(c: Context): List<Seguito> = runCatching {
-        val a = JSONArray(p(c).getString("canali", "[]"))
-        (0 until a.length()).map { i -> a.getJSONObject(i).let { o ->
-            Seguito(o.getString("id"), o.optString("nome"), o.optInt("min", 60), o.optBoolean("v", true),
-                o.optBoolean("s", true), o.optBoolean("l", true), o.optBoolean("on", true), o.optLong("ult", 0L))
-        } }
-    }.getOrDefault(emptyList())
+    private fun daJson(a: JSONArray?) = a?.let { (0 until it.length()).map { i -> it.getJSONObject(i).let { o ->
+        Seguito(o.getString("id"), o.optString("nome"), o.optInt("min", 60), o.optBoolean("v", true), o.optBoolean("s", true),
+            o.optBoolean("l", true), o.optBoolean("on", true), o.optLong("ult", 0L), o.optString("casa"), o.optLong("mod", 0L),
+            o.optBoolean("tolto", false), o.optJSONArray("par")?.let { p -> (0 until p.length()).map { p.getString(it) } }.orEmpty())
+    } } }.orEmpty()
+
+    /** Tutti i canali, anche quelli tolti (servono alla famiglia). */
+    private fun compresiTolti(c: Context): List<Seguito> =
+        runCatching { daJson(JSONArray(p(c).getString("canali", "[]"))) }.getOrDefault(emptyList())
+
+    /** I canali seguiti. */
+    fun tutti(c: Context): List<Seguito> = compresiTolti(c).filter { !it.tolto }
 
     fun di(c: Context, id: String) = tutti(c).firstOrNull { it.id == id }
 
-    private fun salva(c: Context, l: List<Seguito>) {
-        val a = JSONArray()
-        l.forEach { s -> a.put(JSONObject().put("id", s.id).put("nome", s.nome).put("min", s.minuti).put("v", s.video)
-            .put("s", s.short).put("l", s.live).put("on", s.attivo).put("ult", s.ultimo)) }
-        p(c).edit().putString("canali", a.toString()).apply()
+    private fun inJson(l: List<Seguito>) = JSONArray().apply {
+        l.forEach { s -> put(JSONObject().put("id", s.id).put("nome", s.nome).put("min", s.minuti).put("v", s.video)
+            .put("s", s.short).put("l", s.live).put("on", s.attivo).put("ult", s.ultimo).put("casa", s.casa)
+            .put("mod", s.mod).put("tolto", s.tolto).put("par", JSONArray(s.parole))) }
     }
 
-    /** Aggiunge o aggiorna un canale e rimette in calendario il controllo. */
+    /** Salva l'elenco (tolti compresi). `cambio` = l'ha cambiato l'utente: la novita' va alle app sorelle. */
+    private fun salva(c: Context, l: List<Seguito>, cambio: Boolean = true) {
+        p(c).edit().putString("canali", inJson(l).toString()).commit()
+        if (cambio) Famiglia.annuncia(c)
+    }
+
+    /** Aggiunge o aggiorna un canale (con la data della modifica) e rimette in calendario il controllo. */
     fun metti(c: Context, s: Seguito) {
-        val l = tutti(c).toMutableList()
+        val l = compresiTolti(c).toMutableList()
+        val nuovo = s.copy(mod = System.currentTimeMillis(), tolto = false)
         val i = l.indexOfFirst { it.id == s.id }
-        if (i >= 0) l[i] = s else l.add(s)
+        if (i >= 0) l[i] = nuovo else l.add(nuovo)
         salva(c, l); programma(c)
     }
 
+    /** Un canale «di casa» di un'app installata non si toglie: si mette in pausa. */
+    fun diCasa(c: Context, s: Seguito) = s.casa.isNotEmpty() && Famiglia.installata(c, s.casa)
+
     fun togli(c: Context, id: String) {
-        salva(c, tutti(c).filter { it.id != id })
-        p(c).edit().remove("visti_$id").apply()
+        di(c, id)?.let { if (diCasa(c, it)) return }
+        salva(c, compresiTolti(c).map { if (it.id == id) it.copy(tolto = true, mod = System.currentTimeMillis()) else it })
         programma(c)
+    }
+
+    // ── la famiglia: i canali di casa e lo stato condiviso ───────────
+
+    /** I canali di questa app ([Marca.CASA]) stanno sempre fra quelli seguiti, segnati come «di casa». */
+    fun assicuraCasa(c: Context) {
+        val l = compresiTolti(c).toMutableList(); var cambiato = false
+        val ora = System.currentTimeMillis()
+        val parole = Catalogo.paroleCasa(c)
+        for ((id, nome) in Marca.CASA) {
+            val i = l.indexOfFirst { it.id == id }
+            if (i < 0 || l[i].tolto) {
+                if (i >= 0) l.removeAt(i)
+                l.add(Seguito(id, nome, attivo = Notifiche.attiveVecchie(c), casa = c.packageName, mod = ora, parole = parole))
+                // i video gia' visti dal vecchio controllo del canale di casa: niente raffica all'aggiornamento
+                Notifiche.vistiVecchi(c)?.let { if (Marca.CASA.size == 1) p(c).edit().putStringSet("visti_$id", it).apply() }
+                cambiato = true
+            } else if (l[i].casa.isEmpty() || !Famiglia.installata(c, l[i].casa)) {
+                l[i] = l[i].copy(casa = c.packageName, mod = ora, parole = parole); cambiato = true
+            } else if (l[i].casa == c.packageName && l[i].parole != parole) {
+                l[i] = l[i].copy(parole = parole, mod = ora); cambiato = true
+            }
+        }
+        if (cambiato) { salva(c, l); programma(c) }
+    }
+
+    /** Lo stato da dare alle sorelle: tutti i canali (tolti compresi, con la data della modifica) e i video visti. */
+    fun stato(c: Context): JSONObject {
+        val l = compresiTolti(c)
+        val visti = JSONObject()
+        l.forEach { s -> p(c).getStringSet("visti_${s.id}", null)?.let { visti.put(s.id, JSONArray(it.toList())) } }
+        return JSONObject().put("canali", inJson(l)).put("visti", visti)
+    }
+
+    /**
+     * Unisce lo stato di una sorella, canale per canale: vince la versione cambiata piu' di recente dall'utente
+     * (anche se e' una rimozione); l'ultimo controllo e' il piu' recente dei due; i video visti si sommano.
+     */
+    @Synchronized
+    fun unisci(c: Context, altro: JSONObject) {
+        val mio = compresiTolti(c).associateBy { it.id }
+        val loro = daJson(altro.optJSONArray("canali")).associateBy { it.id }
+        var cambiato = false
+        val unito = (mio.keys + loro.keys).map { id ->
+            val m = mio[id]; val l = loro[id]
+            val scelto = when {
+                m == null -> { cambiato = true; l!! }
+                l == null -> m
+                l.mod > m.mod -> { cambiato = true; l }
+                else -> m
+            }
+            scelto.copy(ultimo = maxOf(m?.ultimo ?: 0L, l?.ultimo ?: 0L))
+        }
+        val e = p(c).edit().putString("canali", inJson(unito).toString())
+        val visti = altro.optJSONObject("visti")
+        if (visti != null) for (s in unito) {
+            val suoi = visti.optJSONArray(s.id) ?: continue
+            val miei = p(c).getStringSet("visti_${s.id}", null)?.toMutableSet() ?: mutableSetOf()
+            for (k in 0 until suoi.length()) miei.add(suoi.getString(k))
+            e.putStringSet("visti_${s.id}", miei.toList().takeLast(400).toSet())
+        }
+        e.commit()
+        if (cambiato) programma(c)
     }
 
     // ── dal link al canale ───────────────────────────────────────────
@@ -199,7 +281,10 @@ object Seguiti {
     }
 
     internal suspend fun controlla(c: Context, forza: Boolean = false) {
+        // prima si guarda cosa hanno gia' controllato e visto le app sorelle: niente doppi controlli, niente doppi avvisi
+        runCatching { assicuraCasa(c); Famiglia.allinea(c) }
         val ora = System.currentTimeMillis()
+        var controllati = 0
         for (s in tutti(c)) {
             if (!s.attivo || s.tipi().isEmpty()) continue
             // un minuto di margine: Android sveglia il lavoro un po' prima o un po' dopo
@@ -212,13 +297,22 @@ object Seguiti {
             for (t in Canale.Tipo.values()) {
                 val lista = runCatching { ultimi(s, t) }.getOrNull() ?: continue
                 letto = true
-                lista.forEach { v -> if (visti.add(v.youtubeId) && prima != null && t in s.tipi()) nuovi.add(v) }
+                lista.forEach { v -> if (visti.add(v.youtubeId) && prima != null && t in s.tipi() && pertinente(s, v.titolo)) nuovi.add(v) }
             }
             if (!letto) continue
             p(c).edit().putStringSet(chiave, visti.toList().takeLast(300).toSet()).apply()
-            di(c, s.id)?.let { salva(c, tutti(c).map { x -> if (x.id == s.id) x.copy(ultimo = ora) else x }) }
+            di(c, s.id)?.let { salva(c, tutti(c).map { x -> if (x.id == s.id) x.copy(ultimo = ora) else x }, cambio = false) }
             if (nuovi.isNotEmpty()) avvisa(c, s, nuovi)
+            controllati++
         }
+        if (controllati > 0) Famiglia.annuncia(c)
+    }
+
+    /** Per i canali di un'app per argomento: il titolo deve contenere una delle parole dell'argomento. */
+    private fun pertinente(s: Seguito, titolo: String): Boolean {
+        if (s.parole.isEmpty()) return true
+        val t = " " + titolo.lowercase() + " "
+        return s.parole.any { it in t }
     }
 
     private fun avvisa(c: Context, s: Seguito, nuovi: List<Video>) {

@@ -1,5 +1,7 @@
 package it.bibliotecadialessandria.ricerca
 
+import android.content.Context
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jsoup.Connection
@@ -205,4 +207,9 @@ object Catalogo {
                 zona = dopo("Zone"),
             )
         }
+
+    /** Le app di un solo canale avvisano di tutto quello che pubblica. */
+    fun paroleCasa(c: Context): List<String> = emptyList()
+    /** Solo per le app con piu' canali: qui «Novita'» legge il feed del canale. */
+    suspend fun recenti(tipo: String): List<Video> = emptyList()
 }
